@@ -18,7 +18,7 @@ export default function OrganizerLogin({ onLogin }) {
       const body = mode === "login"
         ? { email: form.email, password: form.password }
         : { name: form.name, email: form.email, password: form.password };
-      const res = await fetch(`http://localhost:8000${endpoint}`, {
+      const res = await fetch(`${import.meta.env.VITE_AI_URL || 'http://localhost:8000'}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),

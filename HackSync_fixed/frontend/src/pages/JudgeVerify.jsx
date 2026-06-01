@@ -27,7 +27,7 @@ export default function JudgeVerify({ onSuccess, token }) {
     const verify = async () => {
       try {
         const res = await fetch(
-          `http://localhost:5000/api/judge/verify?token=${encodeURIComponent(token)}`,
+          `${import.meta.env.VITE_NODE_URL || 'http://localhost:5000'}/api/judge/verify?token=${encodeURIComponent(token)}`,
           { credentials: 'include' }
         );
         const data = await res.json();
