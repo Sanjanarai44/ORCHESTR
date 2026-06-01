@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  background-color: #F5F3F0;
+}
+
+* {
+  box-sizing: border-box;
+}
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #c1c8c2;
+  border-radius: 999px;
+}
+body {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+body {
+  overflow-x: hidden;
+}

@@ -1,0 +1,174 @@
+/**
+ * API routing:
+ * Port 5000 (Node/PostgreSQL) → ALL data: participants, teams, judges, evaluations
+ * Port 8000 (Python/AI) → ONLY AI calls: rationale, email drafting, event config
+ */
+
+const NODE = 'http://localhost:5000';
+const AI   = 'http://localhost:8000';
+
+async function nodeRequest(path, options = {}) {
+  const res = await fetch(`${NODE}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.detail || `API error ${res.status}`);
+  }
+  return res.json();
+}
+
+async function aiRequest(path, options = {}) {
+  const res = await fetch(`${AI}${path}`, {
+    headers: { 'Content-Type': 'application/json', ...options.headers },
+    ...options,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || err.detail || `AI error ${res.status}`);
+  }
+  return res.json();
+}
+
+// ─── Auth (Python) ────────────────────────────────────────────────────────────
+export const authApi = {
+  login: (data) => aiRequest('/auth/login', { method: 'POST', body: JSON.stringify(data) }),
+  register: (data) => aiRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ─── Events (Python) ──────────────────────────────────────────────────────────
+export const eventsApi = {
+  getAll: (organizerId) => aiRequest(`/events?organizer_id=${organizerId}`),
+  create: (data) => aiRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => aiRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+  delete: (id) => aiRequest(`/events/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Participants (Node → PostgreSQL) ─────────────────────────────────────────
+export const participantsApi = {
+  getAll: () => nodeRequest('/api/admin/participants'),
+  getById: (id) => nodeRequest(`/api/admin/participants/${id}`),
+  // FIXED: correct path
+  getByEmail: (email) => nodeRequest(`/api/admin/participants/by-email/${encodeURIComponent(email)}`),
+  add: (data) => nodeRequest('/api/admin/participants', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id) => nodeRequest(`/api/admin/participants/${id}`, { method: 'DELETE' }),
+};
+
+// ─── Teams (Node → PostgreSQL) ────────────────────────────────────────────────
+export const adminTeamsApi = {
+  getAll: (status = '') => nodeRequest(`/api/admin/teams${status ? `?status=${encodeURIComponent(status)}` : ''}`),
+  getDraft: () => nodeRequest('/api/admin/teams?status=DRAFT'),
+  getPublished: () => nodeRequest('/api/admin/teams?status=PUBLISHED'),
+  generate: (opts = {}) => nodeRequest('/api/admin/generate-teams', {
+    method: 'POST', body: JSON.stringify(opts),
+  }),
+  approveAndPublish: () => nodeRequest('/api/admin/approve-publish-teams', {
+    method: 'POST', body: JSON.stringify({}),
+  }),
+};
+
+// Alias used by participant dashboard
+export const teamsApi = {
+  // FIXED: returns all teams regardless of status
+  getAll: () => nodeRequest('/api/admin/teams'),
+  getPublished: () => nodeRequest('/api/admin/teams?status=PUBLISHED'),
+  getPendingCount: () => nodeRequest('/api/admin/teams?status=DRAFT').then(r => ({ pending: (r.teams || []).length })),
+};
+
+// ─── Leaderboard ──────────────────────────────────────────────────────────────
+export const leaderboardApi = {
+  get: () => nodeRequest('/api/admin/leaderboard'),
+};
+
+// ─── Approvals ────────────────────────────────────────────────────────────────
+export const approvalsApi = {
+  getPending: () => nodeRequest('/api/admin/pending-approvals'),
+};
+
+// ─── Scores (Node → PostgreSQL) ───────────────────────────────────────────────
+export const scoresApi = {
+  submit: (data, token) => nodeRequest('/api/judge/evaluate', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(data),
+  }),
+  getByTeam: (teamId) => nodeRequest(`/api/admin/scores/${teamId}`),
+};
+
+// ─── Judges (Node → PostgreSQL) ───────────────────────────────────────────────
+export const judgesApi = {
+  getAll: () => nodeRequest('/api/admin/judges'),
+  add: (data) => nodeRequest('/api/admin/judges', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id) => nodeRequest(`/api/admin/judges/${id}`, { method: 'DELETE' }),
+  sendLinks: () => nodeRequest('/api/admin/send-judge-links', { method: 'POST' }),
+  assignTeams: () => nodeRequest('/api/admin/assign-judges', { method: 'POST' }),
+  sendParticipantEmails: (emailType) => nodeRequest('/api/admin/send-participant-emails', {
+    method: 'POST', body: JSON.stringify({ emailType }),
+  }),
+};
+
+// ─── Judge Portal (Node → PostgreSQL) ─────────────────────────────────────────
+export const judgeApi = {
+  verify: (token) => nodeRequest(`/api/judge/verify?token=${encodeURIComponent(token)}`),
+  getTeams: (token) => nodeRequest(`/api/judge/teams`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+  submitEvaluation: (data, token) => nodeRequest('/api/judge/evaluate', {
+    method: 'POST',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    body: JSON.stringify(data),
+  }),
+  getProgress: (token) => nodeRequest(`/api/judge/progress`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }),
+};
+
+// ─── Activity Log (Node → PostgreSQL) ─────────────────────────────────────────
+export const activityApi = {
+  getLog: () => nodeRequest('/api/admin/activity-log'),
+};
+
+// ─── Stage Management (Node → PostgreSQL) ─────────────────────────────────────
+export const stageApi = {
+  getStages: () => nodeRequest('/api/admin/stages'),
+  advanceStage: (fromStage, toStage) => nodeRequest('/api/admin/advance-stage', {
+    method: 'POST', body: JSON.stringify({ from_stage: fromStage, to_stage: toStage }),
+  }),
+};
+
+// ─── AI (Python → LLM) ────────────────────────────────────────────────────────
+export const aiApi = {
+  generateRationale: (data) => aiRequest('/generate-rationale', { method: 'POST', body: JSON.stringify(data) }),
+  draftEmail: (data) => aiRequest('/draft-email', { method: 'POST', body: JSON.stringify(data) }),
+  generateRubric: (data) => aiRequest('/generate-rubric', { method: 'POST', body: JSON.stringify(data) }),
+  explainAnomaly: (data) => aiRequest('/explain-anomaly', { method: 'POST', body: JSON.stringify(data) }),
+  compatibilitySummary: (data) => aiRequest('/compatibility-summary', { method: 'POST', body: JSON.stringify(data) }),
+  configureEvent: (data) => aiRequest('/configure-event', { method: 'POST', body: JSON.stringify(data) }),
+};
+
+// ─── useApi hook ──────────────────────────────────────────────────────────────
+import { useState, useEffect, useCallback } from 'react';
+
+export function useApi(apiFn, ...args) {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await apiFn(...args);
+      setData(result);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setLoading(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(args)]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
+  return { data, loading, error, refetch: fetchData };
+}

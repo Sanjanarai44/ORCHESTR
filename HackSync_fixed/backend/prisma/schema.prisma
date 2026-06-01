@@ -1,0 +1,129 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Participant {
+  id        String   @id @default(cuid())
+  name      String
+  email     String   @unique
+  college   String
+  skill     String
+  stage     String   @default("roster")
+  createdAt DateTime @default(now())
+}
+
+model Team {
+  id                String              @id @default(cuid())
+  name              String
+  status            String              @default("active")
+  aiRationale       String?
+  problemStatement  String?
+  evaluationGuide   String?
+  resultsHeld       Boolean             @default(false)
+  createdAt         DateTime            @default(now())
+  members           TeamMember[]
+  evaluations       Evaluation[]
+  anomalyFlags      AnomalyFlag[]
+  mentorMessages    MentorConversation[]
+}
+
+model TeamMember {
+  id      String  @id @default(cuid())
+  teamId  String
+  name    String
+  email   String?
+  skill   String?
+  college String?
+  team    Team    @relation(fields: [teamId], references: [id])
+}
+
+model Judge {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  name           String
+  jwtToken       String?
+  tokenUsed      Boolean      @default(false)
+  assignedTeams  String       @default("[]")
+  createdAt      DateTime     @default(now())
+  evaluations    Evaluation[]
+  anomalyFlags   AnomalyFlag[]
+}
+
+model Evaluation {
+  id                String    @id @default(cuid())
+  judgeId           String
+  teamId            String
+  scoreCode         Int
+  scoreInnovation   Int
+  scorePresentaion  Int
+  starRating        Int       @default(0)
+  comment           String
+  discarded         Boolean   @default(false)
+  overrideScore     Float?
+  submittedAt       DateTime  @default(now())
+  judge             Judge     @relation(fields: [judgeId], references: [id])
+  team              Team      @relation(fields: [teamId], references: [id])
+
+  @@unique([judgeId, teamId])
+}
+
+
+model AnomalyFlag {
+  id             String   @id @default(cuid())
+  teamId         String
+  judgeId        String
+  newScore       Float
+  panelAvg       Float
+  deviation      Float
+  llmExplanation String?
+  status         String   @default("PENDING")  // PENDING | RESOLVED
+  resolution     String?                        // accepted | discarded | overridden
+  createdAt      DateTime @default(now())
+  team           Team     @relation(fields: [teamId], references: [id])
+  judge          Judge    @relation(fields: [judgeId], references: [id])
+}
+
+model EmailLog {
+  id             String    @id @default(cuid())
+  recipientId    String
+  recipientEmail String?
+  recipientName  String?
+  emailType      String    // magic_link | welcome | reminder | results | anomaly_alert
+  status         String    @default("PENDING")  // SENT | FAILED | PENDING
+  sentAt         DateTime?
+  errorMessage   String?
+  attempts       Int       @default(0)
+  jobId          String?
+  createdAt      DateTime  @default(now())
+}
+
+
+model MentorConversation {
+  id        String   @id @default(cuid())
+  teamId    String
+  role      String   // user | assistant
+  content   String
+  timestamp DateTime @default(now())
+  team      Team     @relation(fields: [teamId], references: [id])
+}
+
+model EventSettings {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now()) @updatedAt
+}
+
+
+model AiEmailContent {
+  id          String   @id @default(cuid())
+  recipientId String
+  emailType   String
+  subject     String
+  htmlBody    String
+  createdAt   DateTime @default(now())
+}
