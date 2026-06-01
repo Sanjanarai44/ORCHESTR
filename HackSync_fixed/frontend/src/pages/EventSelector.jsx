@@ -85,7 +85,7 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
   const fetchEvents = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`http://localhost:8000/events?organizer_id=${organizer.id}`);
+      const res = await fetch(`https://orchestr-ai.onrender.com/events?organizer_id=${organizer.id}`);
       const data = await res.json();
       setEvents(data.events || []);
     } catch { setEvents([]); }
@@ -98,7 +98,7 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
     if (!confirm(`Delete "${event.name}" and ALL its data?\n\nThis cannot be undone.`)) return;
     setDeleting(event.id);
     try {
-      await fetch(`http://localhost:8000/events/${event.id}`, { method: "DELETE" });
+      await fetch(`https://orchestr-ai.onrender.com/events/${event.id}`, { method: "DELETE" });
       fetchEvents();
     } catch { alert("Delete failed."); }
     setDeleting(null);

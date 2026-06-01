@@ -28,7 +28,7 @@ function getInitials(name = '') {
  * Shows team members, problem statement, and evaluation guide.
  */
 export default function TeamProfile({ team }) {
-  const AI_API = import.meta.env.VITE_AI_API_URL || 'http://localhost:8000';
+  const AI_API = import.meta.env.VITE_AI_API_URL || 'https://orchestr-ai.onrender.com';
   const [rubric, setRubric] = React.useState('');
   const [rubricLoading, setRubricLoading] = React.useState(false);
 

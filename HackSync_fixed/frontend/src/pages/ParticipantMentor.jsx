@@ -4,7 +4,7 @@ import TypingIndicator from '../components/mentor/TypingIndicator';
 import StarterPrompts from '../components/mentor/StarterPrompts';
 import SessionNotes from '../components/mentor/SessionNotes';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || 'https://orchestr-ai.onrender.com';
 
 /**
  * ParticipantMentor Page — /participant/mentor

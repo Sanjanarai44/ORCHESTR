@@ -78,7 +78,7 @@ function App() {
 
   const handleEventConfigured = async (config) => {
     try {
-      const res = await fetch(`${import.meta.env.VITE_AI_URL || 'http://localhost:8000'}/events`, {
+      const res = await fetch(`${import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com'}/events`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ organizer_id: organizer.id, config }),

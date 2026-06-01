@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 
-const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
-const AI = import.meta.env.VITE_AI_URL || 'http://localhost:8000';
+const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
+const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 
 export default function EvaluationsTab({ eventConfig, eventId }) {
   const [teams, setTeams] = useState([]);

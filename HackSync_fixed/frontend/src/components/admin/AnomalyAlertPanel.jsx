@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 
-const API = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+const API = import.meta.env.VITE_API_URL || 'https://orchestr-ai.onrender.com';
 const WS_URL = (API.replace(/^http/, 'ws')) + '/ws/admin';
 
 /**

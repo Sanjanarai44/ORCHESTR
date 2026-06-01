@@ -6,7 +6,7 @@ import WelcomeHero from '../components/participant/WelcomeHero';
 import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
 
-const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
+const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
 // ── Email login gate ─────────────────────────────────────────────────────────
 function EmailGate({ onFound }) {

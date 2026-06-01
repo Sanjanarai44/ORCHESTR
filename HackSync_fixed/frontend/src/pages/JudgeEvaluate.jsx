@@ -4,7 +4,7 @@ import TeamProfile from '../components/judge/TeamProfile';
 import ScoringPanel from '../components/judge/ScoringPanel';
 import SuccessState from '../components/judge/SuccessState';
 
-const API = import.meta.env.VITE_AI_URL || 'http://localhost:5000';
+const API = import.meta.env.VITE_AI_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
 /**
  * JudgeEvaluate Page — /judge/evaluate
