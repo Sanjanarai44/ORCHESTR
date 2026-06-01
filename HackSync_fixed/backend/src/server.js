@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import './workers/emailWorker.js';
 import uploadRoutes from "./routes/uploadRoutes.js";
 import adminTeamRoutes from "./routes/adminTeamRoutes.js";
 import adminJudgesRoutes from "./routes/adminJudgesRoutes.js";
