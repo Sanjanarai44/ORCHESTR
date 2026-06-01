@@ -127,25 +127,51 @@ router.post("/generate-teams", async (req, res) => {
     const generated = buildTeams(participants, teamSize, retryLimit);
     if (generated.maxTeams === 0) return res.status(400).json({ success: false, message: "Could not form any teams." });
 
-    const persistedTeams = await prisma.$transaction(async (tx) => {
-      const oldDrafts = await tx.team.findMany({ where: { status: "DRAFT" }, select: { id: true } });
-      if (oldDrafts.length > 0) {
-        await tx.teamMember.deleteMany({ where: { teamId: { in: oldDrafts.map(t => t.id) } } });
-        await tx.team.deleteMany({ where: { id: { in: oldDrafts.map(t => t.id) } } });
+    // FIXED: No transaction — avoids Render timeout error P2028
+    // Step 1: Delete old drafts
+    const oldDrafts = await prisma.team.findMany({ where: { status: "DRAFT" }, select: { id: true } });
+    if (oldDrafts.length > 0) {
+      await prisma.teamMember.deleteMany({ where: { teamId: { in: oldDrafts.map(t => t.id) } } });
+      await prisma.team.deleteMany({ where: { id: { in: oldDrafts.map(t => t.id) } } });
+    }
+
+    // Step 2: Create new draft teams one by one
+    for (let idx = 0; idx < generated.teams.length; idx++) {
+      const teamMembers = generated.teams[idx];
+      const team = await prisma.team.create({
+        data: { name: `Team ${String(idx + 1).padStart(2, "0")}`, status: "DRAFT" },
+      });
+      for (const member of teamMembers) {
+        await prisma.teamMember.create({
+          data: {
+            teamId: team.id,
+            name: member.name || "",
+            email: member.email || "",
+            skill: member.skill || "",
+            college: member.college || "",
+          },
+        });
       }
-      for (let idx = 0; idx < generated.teams.length; idx++) {
-        const teamMembers = generated.teams[idx];
-        const team = await tx.team.create({ data: { name: `Team ${String(idx + 1).padStart(2, "0")}`, status: "DRAFT" } });
-        for (const member of teamMembers) {
-          await tx.teamMember.create({
-            data: { teamId: team.id, name: member.name || "", email: member.email || "", skill: member.skill || "", college: member.college || "" },
-          });
-        }
-      }
-      return tx.team.findMany({ where: { status: "DRAFT" }, include: { members: true }, orderBy: { createdAt: "asc" } });
+    }
+
+    // Step 3: Fetch and return created teams
+    const persistedTeams = await prisma.team.findMany({
+      where: { status: "DRAFT" },
+      include: { members: true },
+      orderBy: { createdAt: "asc" },
     });
 
-    return res.json({ success: true, message: `${persistedTeams.length} draft team(s) generated`, teams: persistedTeams.map(mapTeamResponse), meta: { retryLimit, successfulSwaps: generated.successfulSwaps, relaxedDiversityConstraint: generated.relaxedDiversityConstraint, unassignedParticipants: generated.overflowParticipants.map(toParticipantView) } });
+    return res.json({
+      success: true,
+      message: `${persistedTeams.length} draft team(s) generated`,
+      teams: persistedTeams.map(mapTeamResponse),
+      meta: {
+        retryLimit,
+        successfulSwaps: generated.successfulSwaps,
+        relaxedDiversityConstraint: generated.relaxedDiversityConstraint,
+        unassignedParticipants: generated.overflowParticipants.map(toParticipantView),
+      },
+    });
   } catch (error) {
     console.error("Team generation failed:", error);
     return res.status(500).json({ success: false, message: "Failed to generate teams", error: error.message });
