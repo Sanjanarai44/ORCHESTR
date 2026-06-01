@@ -16,7 +16,7 @@ function ApprovalBanner({ eventId, onApprove, onDismiss }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
-    fetch(`http://localhost:5000/api/admin/teams?status=DRAFT`)
+    fetch(`${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}/api/admin/teams?status=DRAFT`)
       .then(r => r.json()).then(d => setCount((d.teams || []).length)).catch(() => {});
   }, [eventId]);
 
@@ -25,7 +25,7 @@ function ApprovalBanner({ eventId, onApprove, onDismiss }) {
   const handleApprove = async () => {
     setApproving(true);
     try {
-      const res = await fetch("http://localhost:5000/api/admin/approve-publish-teams", {
+      const res = await fetch(`${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}/api/admin/approve-publish-teams`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ event_id: eventId }),
