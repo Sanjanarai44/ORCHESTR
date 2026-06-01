@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const NODE = 'http://localhost:5000';
+const NODE = 'import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
 const AI = 'http://localhost:8000';
 
 export default function EvaluationsTab({ eventConfig, eventId }) {

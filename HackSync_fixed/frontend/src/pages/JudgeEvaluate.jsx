@@ -4,7 +4,7 @@ import TeamProfile from '../components/judge/TeamProfile';
 import ScoringPanel from '../components/judge/ScoringPanel';
 import SuccessState from '../components/judge/SuccessState';
 
-const API = 'http://localhost:5000';
+const API = 'import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
 
 /**
  * JudgeEvaluate Page — /judge/evaluate

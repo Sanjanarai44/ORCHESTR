@@ -4,8 +4,8 @@
  * Port 8000 (Python/AI) → ONLY AI calls: rationale, email drafting, event config
  */
 
-const NODE = 'http://localhost:5000';
-const AI   = 'http://localhost:8000';
+const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
+const AI   = import.meta.env.VITE_AI_URL   || 'http://localhost:8000';
 
 async function nodeRequest(path, options = {}) {
   const res = await fetch(`${NODE}${path}`, {

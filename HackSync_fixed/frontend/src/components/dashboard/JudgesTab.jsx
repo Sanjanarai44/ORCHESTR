@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const NODE_URL = 'http://localhost:5000';
+const NODE_URL = 'import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
 const AI_URL = 'http://localhost:8000';
 
 export default function JudgesTab({ eventConfig, eventId }) {
