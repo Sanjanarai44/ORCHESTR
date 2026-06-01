@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import StarRating from './StarRating';
 
 // FIXED: Use Node backend (5000) not 8001
-const API = 'import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
+const API = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
 
 const CRITERIA = [
   {
