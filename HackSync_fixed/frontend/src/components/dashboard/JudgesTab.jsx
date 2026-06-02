@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const NODE_URL = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI_URL = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -11,8 +11,8 @@ export default function JudgesTab({ eventConfig, eventId }) {
   const [isAssigning, setIsAssigning] = useState(false);
   const [isSendingLinks, setIsSendingLinks] = useState(false);
   const [sendLinksMsg, setSendLinksMsg] = useState(null);
-  const [inviteForm, setInviteForm] = useState({ name: '', email: '' });
-  const [isInviting, setIsInviting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef(null);
   const [rubric, setRubric] = useState('');
   const [rubricLoading, setRubricLoading] = useState(false);
 
@@ -68,27 +68,31 @@ export default function JudgesTab({ eventConfig, eventId }) {
     }
   };
 
-  const handleInviteJudge = async () => {
-    if (!inviteForm.name || !inviteForm.email) { alert('Name and email required'); return; }
-    setIsInviting(true);
+  const handleUploadCSV = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.name.endsWith('.csv')) { alert('Please select a CSV file.'); return; }
+    
+    setIsUploading(true);
+    const formData = new FormData();
+    formData.append('file', file);
     try {
-      const res = await fetch(`${NODE_URL}/api/admin/judges`, {
+      const res = await fetch(`${NODE_URL}/api/admin/upload-judges`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(inviteForm),
+        body: formData,
       });
       const data = await res.json();
       if (data.success) {
-        alert('✅ Judge added!');
-        setInviteForm({ name: '', email: '' });
+        alert(`✅ Uploaded ${data.count} judges successfully!`);
         fetchJudges();
       } else {
-        alert('❌ ' + (data.message || 'Failed'));
+        alert('❌ Upload failed: ' + data.message);
       }
     } catch (err) {
-      alert('❌ ' + err.message);
+      alert('❌ Upload error: ' + err.message);
     } finally {
-      setIsInviting(false);
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -236,26 +240,15 @@ export default function JudgesTab({ eventConfig, eventId }) {
         <div className="col-span-12 lg:col-span-4 space-y-4">
           <div className="bg-stone-950 p-6 rounded-2xl text-white space-y-4">
             <div>
-              <h3 className="font-bold text-white">Add New Judge</h3>
-              <p className="text-xs text-stone-400 mt-0.5">Add a judge to the panel manually</p>
+              <h3 className="font-bold text-white">Import Judges</h3>
+              <p className="text-xs text-stone-400 mt-0.5">Upload a CSV file containing <code className="text-stone-300">name</code> and <code className="text-stone-300">email</code> columns.</p>
             </div>
             <div className="space-y-3">
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">Full Name</label>
-                <input type="text" value={inviteForm.name} onChange={e => setInviteForm(p => ({ ...p, name: e.target.value }))}
-                  placeholder="Dr. Jane Smith"
-                  className="w-full bg-stone-900 border border-stone-800 rounded-xl py-2 px-3 text-sm text-white placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-700" />
-              </div>
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-wider text-stone-400 block mb-1">Email Address</label>
-                <input type="email" value={inviteForm.email} onChange={e => setInviteForm(p => ({ ...p, email: e.target.value }))}
-                  placeholder="judge@domain.com"
-                  className="w-full bg-stone-900 border border-stone-800 rounded-xl py-2 px-3 text-sm text-white placeholder:text-stone-600 focus:outline-none focus:ring-2 focus:ring-stone-700" />
-              </div>
-              <button onClick={handleInviteJudge} disabled={isInviting}
+              <input type="file" ref={fileInputRef} accept=".csv" className="hidden" onChange={handleUploadCSV} />
+              <button onClick={() => fileInputRef.current?.click()} disabled={isUploading}
                 className="w-full bg-white hover:bg-stone-100 disabled:opacity-50 text-stone-950 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2">
-                {isInviting ? <div className="w-4 h-4 border-2 border-stone-900 border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">person_add</span>}
-                {isInviting ? 'Adding...' : 'Add Judge'}
+                {isUploading ? <div className="w-4 h-4 border-2 border-stone-900 border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">upload_file</span>}
+                {isUploading ? 'Uploading...' : 'Upload CSV'}
               </button>
             </div>
           </div>

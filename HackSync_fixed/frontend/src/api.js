@@ -8,9 +8,13 @@ const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onr
 const AI   = import.meta.env.VITE_AI_URL   || 'https://orchestr-ai.onrender.com';
 
 async function nodeRequest(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...options.headers };
+  if (options.body instanceof FormData) {
+    delete headers['Content-Type'];
+  }
   const res = await fetch(`${NODE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...options.headers },
     ...options,
+    headers,
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -106,6 +110,7 @@ export const judgesApi = {
   sendParticipantEmails: (emailType) => nodeRequest('/api/admin/send-participant-emails', {
     method: 'POST', body: JSON.stringify({ emailType }),
   }),
+  uploadCSV: (formData) => nodeRequest('/api/admin/upload-judges', { method: 'POST', body: formData }),
 };
 
 // ─── Judge Portal (Node → PostgreSQL) ─────────────────────────────────────────

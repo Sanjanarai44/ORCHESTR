@@ -224,11 +224,68 @@ router.post('/advance-stage', async (req, res) => {
 router.get('/scores/:teamId', async (req, res) => {
   try {
     const { teamId } = req.params;
-    const evals = await prisma.evaluation.findMany({ where: { teamId }, include: { judge: true } });
-    const scores = evals.map(e => ({ id: e.id, judge_name: e.judge.name, score: e.scoreCode, innovation: e.scoreInnovation, presentation: e.scorePresentaion }));
+    const evals = await prisma.evaluation.findMany({ where: { teamId, discarded: false }, include: { judge: true } });
+    const scores = evals.map(e => ({ id: e.id, judge_name: e.judge.name, score: e.overrideScore !== null ? e.overrideScore : e.scoreCode, innovation: e.scoreInnovation, presentation: e.scorePresentaion }));
     const avg = scores.length > 0 ? scores.reduce((s, e) => s + e.score, 0) / scores.length : 0;
-    return res.json({ scores, average: avg, anomalies: scores.filter(s => Math.abs(s.score - avg) > 2.0) });
+    
+    // Fetch actual DB anomalies
+    const dbAnomalies = await prisma.anomalyFlag.findMany({
+      where: { teamId, status: 'PENDING' },
+      include: { judge: true }
+    });
+    
+    const anomalies = dbAnomalies.map(a => ({
+      id: a.id,
+      judge_name: a.judge.name,
+      score: a.newScore,
+      panel_average: a.panelAvg,
+      deviation: a.deviation,
+      llmExplanation: a.llmExplanation
+    }));
+
+    return res.json({ scores, average: avg, anomalies });
   } catch { return res.json({ scores: [], average: 0, anomalies: [] }); }
+});
+
+router.post('/anomalies/:id/:action', async (req, res) => {
+  try {
+    const { id, action } = req.params;
+    const { overrideScore } = req.body;
+    
+    const anomaly = await prisma.anomalyFlag.findUnique({ where: { id } });
+    if (!anomaly) return res.status(404).json({ success: false, message: 'Anomaly not found' });
+
+    let resolution = 'accepted';
+    if (action === 'dismiss' || action === 'accept') {
+      resolution = 'accepted';
+    } else if (action === 'decline') {
+      resolution = 'discarded';
+      // Mark evaluation as discarded
+      const ev = await prisma.evaluation.findUnique({
+        where: { judgeId_teamId: { judgeId: anomaly.judgeId, teamId: anomaly.teamId } }
+      });
+      if (ev) {
+        await prisma.evaluation.update({ where: { id: ev.id }, data: { discarded: true } });
+      }
+    } else if (action === 'override') {
+      resolution = 'overridden';
+      const ev = await prisma.evaluation.findUnique({
+        where: { judgeId_teamId: { judgeId: anomaly.judgeId, teamId: anomaly.teamId } }
+      });
+      if (ev) {
+        await prisma.evaluation.update({ where: { id: ev.id }, data: { scoreCode: Number(overrideScore), overrideScore: Number(overrideScore) } });
+      }
+    }
+
+    await prisma.anomalyFlag.update({
+      where: { id },
+      data: { status: 'RESOLVED', resolution }
+    });
+
+    return res.json({ success: true, resolution });
+  } catch (err) {
+    return res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 router.get('/leaderboard', async (req, res) => {

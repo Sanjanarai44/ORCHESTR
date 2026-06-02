@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { aiApi } from '../../api';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -10,6 +11,8 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   const [selectedAnomaly, setSelectedAnomaly] = useState(null);
   const [overrideScore, setOverrideScore] = useState('');
   const [stats, setStats] = useState({ total: 0, pending: 0, finalized: 0, average: 0 });
+  const [explanations, setExplanations] = useState({});
+  const [explaining, setExplaining] = useState({});
 
   const fetchData = async () => {
     try {
@@ -59,7 +62,7 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   const handleResolve = async (anomalyId, action) => {
     try {
       const payload = action === 'override' ? { overrideScore: parseFloat(overrideScore) } : {};
-      await fetch(`${AI}/api/anomalies/${anomalyId}/${action}`, {
+      await fetch(`${NODE}/api/admin/anomalies/${anomalyId}/${action}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -67,9 +70,26 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       setAnomalies(prev => prev.filter(a => a.id !== anomalyId));
       setSelectedAnomaly(null);
       setOverrideScore('');
+      fetchData(); // Refresh the table
     } catch (err) {
       alert('Failed to resolve anomaly');
     }
+  };
+
+  const handleExplain = async (anomaly) => {
+    setExplaining(prev => ({ ...prev, [anomaly.id]: true }));
+    try {
+      const res = await aiApi.explainAnomaly({
+        team_name: anomaly.team_name,
+        judge_name: anomaly.judge_name,
+        score: anomaly.score,
+        panel_average: anomaly.panel_average
+      });
+      setExplanations(prev => ({ ...prev, [anomaly.id]: res.explanation }));
+    } catch (err) {
+      setExplanations(prev => ({ ...prev, [anomaly.id]: 'Failed to generate explanation.' }));
+    }
+    setExplaining(prev => ({ ...prev, [anomaly.id]: false }));
   };
 
   if (loading) return (
@@ -111,33 +131,51 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
           </h3>
           <div className="space-y-2">
             {anomalies.map((a, i) => (
-              <div key={i} className="bg-white dark:bg-stone-900 rounded-xl p-4 flex items-center justify-between gap-4">
-                <div>
-                  <p className="text-sm font-bold text-stone-900 dark:text-white">{a.team_name}</p>
-                  <p className="text-xs text-stone-500 mt-0.5">
-                    {a.judge_name} scored {a.score}/10 — panel avg {Number(a.panel_average || 0).toFixed(1)}/10
-                    <span className="ml-2 text-red-600 font-bold">(Δ {Number(a.delta || Math.abs(a.score - (a.panel_average || 0))).toFixed(1)} pts)</span>
-                  </p>
+              <div key={i} className="flex flex-col gap-2">
+                <div className="bg-white dark:bg-stone-900 rounded-xl p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-stone-900 dark:text-white">{a.team_name}</p>
+                    <p className="text-xs text-stone-500 mt-0.5">
+                      {a.judge_name} scored {a.score}/10 — panel avg {Number(a.panel_average || 0).toFixed(1)}/10
+                      <span className="ml-2 text-red-600 font-bold">(Δ {Number(a.delta || Math.abs(a.score - (a.panel_average || 0))).toFixed(1)} pts)</span>
+                    </p>
+                  </div>
+                  <div className="flex gap-2 items-center flex-wrap">
+                    {!explanations[a.id] && !a.llmExplanation && (
+                      <button onClick={() => handleExplain(a)} disabled={explaining[a.id]}
+                        className="text-xs font-bold px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 flex items-center gap-1 disabled:opacity-50">
+                        <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                        {explaining[a.id] ? 'Analyzing...' : 'Explain (AI)'}
+                      </button>
+                    )}
+                    {selectedAnomaly === a.id ? (
+                      <div className="flex items-center gap-2">
+                        <input type="number" min="0" max="10" step="0.5" value={overrideScore}
+                          onChange={e => setOverrideScore(e.target.value)}
+                          placeholder="New score"
+                          className="w-24 border border-stone-300 rounded-lg px-2 py-1 text-sm" />
+                        <button onClick={() => handleResolve(a.id, 'override')}
+                          className="text-xs font-bold px-3 py-1.5 bg-red-600 text-white rounded-lg">Apply Override</button>
+                        <button onClick={() => setSelectedAnomaly(null)}
+                          className="text-xs font-bold px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300">Cancel</button>
+                      </div>
+                    ) : (
+                      <>
+                        <button onClick={() => handleResolve(a.id, 'accept')}
+                          className="text-xs font-bold px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200">Accept Score</button>
+                        <button onClick={() => handleResolve(a.id, 'decline')}
+                          className="text-xs font-bold px-3 py-1.5 bg-red-100 text-red-800 rounded-lg hover:bg-red-200">Decline Score</button>
+                        <button onClick={() => setSelectedAnomaly(a.id)}
+                          className="text-xs font-bold px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50">Override</button>
+                      </>
+                    )}
+                  </div>
                 </div>
-                <div className="flex gap-2">
-                  {selectedAnomaly === a.id ? (
-                    <div className="flex items-center gap-2">
-                      <input type="number" min="0" max="10" step="0.5" value={overrideScore}
-                        onChange={e => setOverrideScore(e.target.value)}
-                        placeholder="New score"
-                        className="w-24 border border-stone-300 rounded-lg px-2 py-1 text-sm" />
-                      <button onClick={() => handleResolve(a.id, 'override')}
-                        className="text-xs font-bold px-3 py-1.5 bg-red-600 text-white rounded-lg">Override</button>
-                      <button onClick={() => handleResolve(a.id, 'dismiss')}
-                        className="text-xs font-bold px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg">Dismiss</button>
-                    </div>
-                  ) : (
-                    <button onClick={() => setSelectedAnomaly(a.id)}
-                      className="text-xs font-bold px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
-                      Review
-                    </button>
-                  )}
-                </div>
+                {(explanations[a.id] || a.llmExplanation) && (
+                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-sm text-purple-900">
+                    <strong>AI Analysis:</strong> {explanations[a.id] || a.llmExplanation}
+                  </div>
+                )}
               </div>
             ))}
           </div>

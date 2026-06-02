@@ -4,8 +4,7 @@ import TeamProfile from '../components/judge/TeamProfile';
 import ScoringPanel from '../components/judge/ScoringPanel';
 import SuccessState from '../components/judge/SuccessState';
 
-const API = import.meta.env.VITE_AI_URL || 'https://orchestr-backend-8u5k.onrender.com';
-
+import { judgeApi } from '../api';
 /**
  * JudgeEvaluate Page — /judge/evaluate
  *
@@ -24,12 +23,7 @@ export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judg
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetch(`${API}/api/judge/teams`, { 
-          credentials: 'include',
-          headers: { 'Authorization': `Bearer ${judgeToken}` }
-        });
-        if (!res.ok) throw new Error('Failed to load teams');
-        const data = await res.json();
+        const data = await judgeApi.getTeams(judgeToken);
         setTeams(data.teams || []);
         // Start on requested team, or first unscored team
         let startIndex = 0;
@@ -59,12 +53,8 @@ export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judg
   // ── After successful submission ──────────────────────────────────────────
   const handleScoreSubmitted = useCallback(async (teamId, nextTeamId) => {
     try {
-      const res = await fetch(`${API}/api/judge/teams`, { 
-        credentials: 'include',
-        headers: { 'Authorization': `Bearer ${judgeToken}` }
-      });
-      if (res.ok) {
-        const data = await res.json();
+      const data = await judgeApi.getTeams(judgeToken);
+      if (data) {
         const updatedTeams = data.teams || [];
         setTeams(updatedTeams);
         

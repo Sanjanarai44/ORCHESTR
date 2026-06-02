@@ -105,7 +105,7 @@ export default function ParticipantsTab() {
     formData.append('file', file);
     setIsUploading(true);
     try {
-      const res = await fetch('https://orchestr-backend-8u5k.onrender.com/api/admin/upload-roster', {
+      const res = await fetch(`${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}/api/admin/upload-roster`, {
         method: 'POST',
         body: formData,
       });

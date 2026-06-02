@@ -24,7 +24,7 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
     const results = [];
     await new Promise((resolve, reject) => {
       fs.createReadStream(req.file.path)
-        .pipe(csv())
+        .pipe(csv({ mapHeaders: ({ header }) => header.trim().toLowerCase() }))
         .on("data", (data) => results.push(data))
         .on("end", resolve)
         .on("error", reject);
@@ -137,6 +137,38 @@ router.delete("/participants/:id", async (req, res) => {
     return res.json({ success: true, message: "Deleted" });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
+  }
+});
+// POST /api/admin/upload-judges
+router.post("/upload-judges", upload.single("file"), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+
+    const results = [];
+    await new Promise((resolve, reject) => {
+      fs.createReadStream(req.file.path)
+        .pipe(csv({ mapHeaders: ({ header }) => header.trim().toLowerCase() }))
+        .on("data", (data) => results.push(data))
+        .on("end", resolve)
+        .on("error", reject);
+    });
+
+    let count = 0;
+    for (const row of results) {
+      if (!row.email) continue;
+      await prisma.judge.upsert({
+        where: { email: row.email.trim() },
+        update: { name: row.name?.trim() || "" },
+        create: { name: row.name?.trim() || "", email: row.email.trim() },
+      });
+      count++;
+    }
+
+    try { fs.unlinkSync(req.file.path); } catch {}
+    return res.json({ success: true, message: "CSV uploaded", count });
+  } catch (error) {
+    if (req.file && fs.existsSync(req.file.path)) try { fs.unlinkSync(req.file.path); } catch {}
+    return res.status(500).json({ success: false, message: "Upload failed", error: error.message });
   }
 });
 
