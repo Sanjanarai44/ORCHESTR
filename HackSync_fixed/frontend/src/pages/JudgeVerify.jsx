@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-
+import { judgeApi } from '../api';
 /**
  * JudgeVerify Page — /judge/verify?token=xxx
  *
@@ -26,25 +26,7 @@ export default function JudgeVerify({ onSuccess, token }) {
 
     const verify = async () => {
       try {
-        const res = await fetch(
-          `${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}/api/judge/verify?token=${encodeURIComponent(token)}`,
-          { credentials: 'include' }
-        );
-        const data = await res.json();
-
-        if (!res.ok) {
-          const detail = data.detail || 'Verification failed.';
-          if (res.status === 409) {
-            setErrorType('used');
-          } else if (detail.toLowerCase().includes('expired')) {
-            setErrorType('expired');
-          } else {
-            setErrorType('invalid');
-          }
-          setErrorMessage(detail);
-          setstate('error');
-          return;
-        }
+        const data = await judgeApi.verify(token);
 
         setstate('success');
         // Small delay for visual confirmation, then navigate
@@ -52,8 +34,17 @@ export default function JudgeVerify({ onSuccess, token }) {
           if (onSuccess) onSuccess(data.judgeName);
         }, 1200);
       } catch (err) {
-        setErrorType('invalid');
-        setErrorMessage('Network error. Please check your connection and try again.');
+        const detail = err.message || 'Verification failed.';
+        if (detail.includes('409')) {
+          setErrorType('used');
+        } else if (detail.toLowerCase().includes('expired')) {
+          setErrorType('expired');
+        } else if (detail.toLowerCase().includes('judge not found')) {
+          setErrorType('invalid');
+        } else {
+          setErrorType('invalid');
+        }
+        setErrorMessage(detail);
         setstate('error');
       }
     };

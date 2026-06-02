@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-
+import { aiApi } from '../../api';
 const statusBadge = (scored, active) => {
   if (scored) return (
     <span style={{
@@ -83,15 +83,10 @@ export default function EvaluationQueue({
 
     setRubricLoading(true);
     try {
-      const res = await fetch('/generate-rubric', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          team_name: team.name,
-          challenge: team.rationale || team.scope || 'Hackathon project'
-        })
+      const data = await aiApi.generateRubric({
+        team_name: team.name,
+        challenge: team.rationale || team.scope || 'Hackathon project'
       });
-      const data = await res.json();
       setRubric(data.rubric);
     } catch {
       setRubric(null);

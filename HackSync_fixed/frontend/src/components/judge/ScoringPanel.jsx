@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import StarRating from './StarRating';
 
-// FIXED: Use Node backend (5000) not 8001
-const API = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
-
+import { judgeApi } from '../../api';
 const CRITERIA = [
   {
     key: 'scoreCode',
@@ -46,25 +44,14 @@ export default function ScoringPanel({ team, judgeToken, onSubmitted }) {
 
     setSubmitting(true);
     try {
-      // FIXED: submit to /api/judge/evaluate with Authorization header
-      const res = await fetch(`${API}/api/judge/evaluate`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${judgeToken}`,
-        },
-        body: JSON.stringify({
-          teamId: team.id,
-          scoreCode: scores.scoreCode,
-          scoreInnovation: scores.scoreInnovation,
-          scorePresentation: scores.scorePresentation,
-          comment: comment.trim(),
-          starRating,
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.detail || data.message || 'Submission failed');
+      await judgeApi.submitEvaluation({
+        teamId: team.id,
+        scoreCode: scores.scoreCode,
+        scoreInnovation: scores.scoreInnovation,
+        scorePresentation: scores.scorePresentation,
+        comment: comment.trim(),
+        starRating,
+      }, judgeToken);
 
       if (onSubmitted) {
         onSubmitted(team.id, null);

@@ -20,18 +20,7 @@ router.get('/judges', async (req, res) => {
   }
 });
 
-// POST /api/admin/judges
-router.post('/judges', async (req, res) => {
-  try {
-    const { name, email } = req.body;
-    if (!name || !email) return res.status(400).json({ success: false, message: 'name and email required' });
-    const judge = await prisma.judge.create({ data: { name, email } });
-    return res.json({ success: true, judge });
-  } catch (error) {
-    if (error?.code === 'P2002') return res.status(409).json({ success: false, message: 'Email already exists' });
-    return res.status(500).json({ success: false, message: 'Failed to add judge' });
-  }
-});
+
 
 // DELETE /api/admin/judges/:id
 router.delete('/judges/:id', async (req, res) => {
@@ -52,15 +41,34 @@ router.post('/assign-judges', async (req, res) => {
     if (judges.length === 0) return res.status(404).json({ success: false, message: 'No judges found' });
     if (teams.length === 0) return res.status(404).json({ success: false, message: 'No published teams found. Approve and publish teams first.' });
 
-    for (let i = 0; i < judges.length; i++) {
-      const assignedTeams = teams.filter((_, idx) => idx % judges.length === i).map(t => t.id);
+    // New Assignment Logic: 3 judges per team, round-robin
+    const assignments = {};
+    judges.forEach(j => (assignments[j.id] = []));
+    
+    let judgeIdx = 0;
+    const targetJudgesPerTeam = Math.min(3, judges.length);
+
+    for (const team of teams) {
+      for (let i = 0; i < targetJudgesPerTeam; i++) {
+        const jId = judges[judgeIdx].id;
+        assignments[jId].push(team.id);
+        judgeIdx = (judgeIdx + 1) % judges.length;
+      }
+    }
+
+    for (const judge of judges) {
       await prisma.judge.update({
-        where: { id: judges[i].id },
-        data: { assignedTeams: JSON.stringify(assignedTeams) },
+        where: { id: judge.id },
+        data: { assignedTeams: JSON.stringify(assignments[judge.id]) },
       });
     }
 
-    return res.json({ success: true, message: `Teams assigned to ${judges.length} judges`, judgeCount: judges.length, teamCount: teams.length });
+    return res.json({ 
+      success: true, 
+      message: `Teams assigned (${targetJudgesPerTeam} per team) to ${judges.length} judges`, 
+      judgeCount: judges.length, 
+      teamCount: teams.length 
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to assign teams' });
   }
@@ -87,7 +95,7 @@ router.post('/send-judge-links', async (req, res) => {
         data: { jwtToken: token, tokenUsed: false },
       });
 
-      const magicLink = `${frontendUrl}/#/judge?token=${token}`;
+      const magicLink = `${frontendUrl}/?token=${token}`;
       const jobId = `magic_link_${judge.id}_${Date.now()}`;
 
       try {
