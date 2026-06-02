@@ -1,39 +1,61 @@
 import React from 'react';
 
 export default function EventJourney({ participant, eventConfig }) {
-  const currentStage = participant?.stage || 'roster';
+  const currentStage = participant?.stage || 'registered';
   const stages = eventConfig?.stages || [];
   const eventName = eventConfig?.event_name || 'Event';
 
-  // Find current index in eventConfig stages
-  // Map DB stage key to stage name by position
-  const stageKeys = ['roster', 'development', 'hacking', 'evaluation', 'demo', 'final'];
+  const stageKeys = [
+    'registered',
+    'team',
+    'idea',
+    'development',
+    'submission',
+    'completed'
+  ];
+
   const currentIndex = stageKeys.indexOf(currentStage.toLowerCase());
-  const nextStageName = stages[currentIndex + 1] || stages[currentIndex] || 'Final Stage';
-  const currentStageName = stages[currentIndex] || stages[0] || currentStage;
 
-  // Derive status messages dynamically
+const stageLabels = {
+  registered: 'Registered',
+  team: 'Team Formation',
+  idea: 'Idea Submission',
+  development: 'Development',
+  submission: 'Final Submission',
+  completed: 'Completed'
+};
+
+const currentStageName =
+  stageLabels[currentStage] || currentStage;
+
+const nextStageName =
+  stageLabels[stageKeys[currentIndex + 1]] ||
+  'Completed';
+  console.log("Current Stage:", currentStage);
+  console.log("Current Index:", currentIndex);
+  console.log("Event Stages:", stages);
+  console.log("Current Stage Name:", currentStageName);
+
   const isEarlyStage = currentIndex <= 1;
-  const isEvaluation = currentStage.includes('eval') || currentIndex === 3;
-  const isFinal = currentIndex >= 4;
+  const isEvaluation =
+  currentStage === 'submission' ||
+  currentStage === 'completed';
+  const isFinal = currentStage === 'completed';
 
-  const evaluatorText = isEarlyStage
-    ? 'Not assigned yet'
-    : isEvaluation
-    ? 'Assigned by committee'
-    : 'Panel assigned';
+  const evaluatorText = isEvaluation
+  ? 'Assigned by committee'
+  : 'Not assigned yet';
 
-  const evaluatorNote = isEarlyStage
-    ? `Evaluators are assigned when ${stages[2] || 'evaluation'} begins`
-    : isEvaluation
-    ? 'Your submission is under review'
-    : 'Prepare for your final presentation';
+  const evaluatorNote = isEvaluation
+  ? 'Your submission is under review'
+  : 'Evaluators will be assigned after submission';
 
-  const submissionStatus = currentIndex === 0
-    ? 'Not open yet'
-    : currentIndex <= 2
-    ? 'In progress'
-    : 'Submitted';
+  const submissionStatus =
+  currentStage === 'completed'
+    ? 'Submitted'
+    : currentStage === 'submission'
+    ? 'Ready to Submit'
+    : 'In Progress';
 
   const advancementRule = eventConfig?.advancement_rule || '';
 

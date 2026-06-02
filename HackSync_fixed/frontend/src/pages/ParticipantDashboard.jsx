@@ -74,16 +74,26 @@ function EmailGate({ onFound }) {
     </div>
   );
 }
+const STAGES = [
+  { key: 'registered', label: 'Registered', icon: 'how_to_reg' },
+  { key: 'team', label: 'Team Formation', icon: 'diversity_3' },
+  { key: 'idea', label: 'Idea Submission', icon: 'lightbulb' },
+  { key: 'development', label: 'Development', icon: 'code' },
+  { key: 'submission', label: 'Final Submission', icon: 'upload' },
+  { key: 'completed', label: 'Completed', icon: 'flag' },
+];
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function ParticipantDashboard({ eventConfig }) {
-  const [participant, setParticipant] = useState(null); // full participant object
+  const [participant, setParticipant] = useState(null);
   const [activeSection, setActiveSection] = useState('dashboard');
   const [countdown, setCountdown] = useState({ hours: 28, minutes: 44, seconds: 12 });
-  const [timeline, setTimeline] = useState([]);
   const [team, setTeam] = useState(null);
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(false);
+
+  const [compatibilitySummary, setCompatibilitySummary] = useState('');
+  const [compatibilityLoading, setCompatibilityLoading] = useState(false);
 
   const scrollContainerRef = useRef(null);
   const sectionRefs = {
@@ -118,15 +128,15 @@ export default function ParticipantDashboard({ eventConfig }) {
         const pRes = await fetch(`${NODE}/api/admin/participants/${participant.id}`);
         const pData = await pRes.json();
         if (pData.success) {
-          setParticipant(prev => ({ ...prev, ...pData.participant }));
-          setTimeline(pData.timeline || []);
-          setNotifications(pData.notifications || []);
-        }
+  setParticipant(prev => ({ ...prev, ...pData.participant }));
+  setNotifications(pData.notifications || []);
+}
 
         // Load ALL published teams and find the participant's team
         const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED`);
         const tData = await tRes.json();
         const teams = tData.teams || [];
+        
 
         // Also check DRAFT teams if not found in PUBLISHED
         let myTeam = teams.find(t =>
@@ -151,6 +161,42 @@ export default function ParticipantDashboard({ eventConfig }) {
 
     load();
   }, [participant?.id]);
+  useEffect(() => {
+  if (!team?.members?.length) return;
+
+  async function generateSummary() {
+    setCompatibilityLoading(true);
+
+    try {
+      const res = await fetch(
+  'https://orchestr-ai.onrender.com/compatibility-summary',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            team_name: team.name,
+            members: team.members,
+          }),
+        }
+      );
+
+      const data = await res.json();
+      setCompatibilitySummary(data.summary || '');
+    } catch (err) {
+      console.error('Compatibility error:', err);
+
+      setCompatibilitySummary(
+        'This team combines complementary technical and creative skills.'
+      );
+    } finally {
+      setCompatibilityLoading(false);
+    }
+  }
+
+  generateSummary();
+}, [team]);
 
   // Scroll spy
   const handleScroll = () => {
@@ -187,7 +233,9 @@ export default function ParticipantDashboard({ eventConfig }) {
       </div>
     );
   }
-
+console.log("PARTICIPANT OBJECT:", participant);
+console.log("PARTICIPANT ID:", participant.id);
+console.log("PARTICIPANT STAGE:", participant.stage);
   return (
     <div className="bg-[#eafdff] h-screen overflow-hidden flex font-sans antialiased text-[#031f22]">
       <ParticipantSidebar activeSection={activeSection} onNavClick={handleNavClick} eventConfig={eventConfig} />
@@ -202,15 +250,72 @@ export default function ParticipantDashboard({ eventConfig }) {
           </div>
 
           <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
-            <TimelineTracker countdown={countdown} timeline={timeline} eventConfig={eventConfig} />
+            <SimpleStageTracker participant={participant} />
             <EventJourney participant={participant} eventConfig={eventConfig} />
           </div>
 
           <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6">
-            <TeamAndResources team={team} eventConfig={eventConfig} />
+            <TeamAndResources
+  team={team}
+  eventConfig={eventConfig}
+  compatibilitySummary={compatibilitySummary}
+  compatibilityLoading={compatibilityLoading}
+/>
           </div>
         </div>
       </main>
     </div>
   );
+  function SimpleStageTracker({ participant }) {
+  const currentStage = participant?.stage || 'registered';
+
+  const currentIndex = STAGES.findIndex(s => s.key === currentStage);
+
+  return (
+    <div className="bg-white rounded-2xl border border-[#c1c8c2]/30 p-6 shadow-sm">
+      <h2 className="text-lg font-bold text-[#012d1d] mb-6">
+        Your Progress
+      </h2>
+
+      <div className="flex items-center justify-between relative">
+
+        {/* progress line background */}
+        <div className="absolute top-5 left-0 right-0 h-[2px] bg-[#d9e6df]" />
+
+        {/* progress line fill */}
+        <div
+          className="absolute top-5 left-0 h-[2px] bg-[#012d1d] transition-all"
+          style={{
+            width: `${(currentIndex / (STAGES.length - 1)) * 100}%`,
+          }}
+        />
+
+        {STAGES.map((stage, idx) => {
+          const isDone = idx <= currentIndex;
+          const isActive = idx === currentIndex;
+
+          return (
+            <div key={stage.key} className="flex flex-col items-center z-10">
+              <div
+                className={`
+                  w-10 h-10 rounded-full flex items-center justify-center border
+                  ${isDone ? 'bg-[#012d1d] text-white' : 'bg-white text-[#012d1d]'}
+                  ${isActive ? 'ring-4 ring-[#c1ecd4]' : ''}
+                `}
+              >
+                <span className="material-symbols-outlined text-[18px]">
+                  {stage.icon}
+                </span>
+              </div>
+
+              <p className="text-[11px] mt-2 text-center text-[#414844]">
+                {stage.label}
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 }

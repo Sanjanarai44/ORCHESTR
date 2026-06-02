@@ -1,6 +1,10 @@
 import React from 'react';
 
-export default function TeamAndResources({ team }) {
+export default function TeamAndResources({
+  team,
+  compatibilitySummary,
+  compatibilityLoading
+}) {
   const resources = [
     { title: 'API Documentation', icon: 'menu_book', desc: 'Core endpoint schemas' },
     { title: 'Asset Package', icon: 'cloud_download', desc: 'Logos, design UI kits' },
@@ -91,9 +95,10 @@ export default function TeamAndResources({ team }) {
 
         <div className="bg-white/60 rounded-xl p-5 flex-1">
           <p className="text-sm text-[#414844] leading-7">
-            {team?.compatibility ||
-              'Generating compatibility summary...'}
-          </p>
+  {compatibilityLoading
+    ? 'Generating compatibility summary...'
+    : compatibilitySummary}
+</p>
         </div>
       </div>
     </div>

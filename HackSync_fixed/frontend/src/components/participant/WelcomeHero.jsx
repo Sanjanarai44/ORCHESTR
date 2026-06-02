@@ -5,42 +5,37 @@ export default function WelcomeHero({
   notifications = []
 }) {
   const getStageMessage = () => {
-    switch (participant?.stage?.toLowerCase()) {
-      case 'development':
-        return 'Keep building!';
+  switch (participant?.stage?.toLowerCase()) {
+    case 'registered':
+      return 'Welcome to the hackathon!';
 
-      case 'evaluation':
-        return 'Your project is under evaluation.';
+    case 'team':
+      return 'Form your team and get started.';
 
-      case 'final':
-        return 'Congratulations! You advanced to the next stage.';
+    case 'idea':
+      return 'Submit your idea proposal.';
 
-      case 'ideation':
-        return 'Your hackathon journey has started.';
+    case 'development':
+      return 'Keep building!';
 
-      default:
-        return 'Stay tuned for updates.';
-    }
-  };
+    case 'submission':
+      return 'Submit your final project.';
 
-  const getBorderColor = (type) => {
-    switch (type) {
-      case 'success':
-        return 'border-[#012d1d]';
+    case 'completed':
+      return 'Your project has been submitted successfully.';
 
-      case 'warning':
-        return 'border-[#c58b00]';
-
-      case 'info':
-        return 'border-[#1b4332]';
-
-      case 'danger':
-        return 'border-[#ba1a1a]';
-
-      default:
-        return 'border-[#717973]';
-    }
-  };
+    default:
+      return 'Stay tuned for updates.';
+  }
+};
+const stageLabels = {
+  registered: 'Registered',
+  team: 'Team Formation',
+  idea: 'Idea Submission',
+  development: 'Development',
+  submission: 'Final Submission',
+  completed: 'Completed'
+};
 const formatSkill = (skill) => {
   if (!skill) return '';
 
@@ -65,9 +60,9 @@ const formatSkill = (skill) => {
       <div className="lg:col-span-2 bg-[#1b4332] rounded-xl p-8 flex flex-col justify-between relative overflow-hidden group min-h-[280px] shadow-sm">
         <div className="relative z-10">
           <span className="text-sm font-semibold text-[#c1ecd4] uppercase tracking-widest mb-4 block">
-            Current Status:{' '}
-            {participant?.stage || 'Not Started'}
-          </span>
+  Current Status:{' '}
+  {stageLabels[participant?.stage] || 'Not Started'}
+</span>
 
           <h1 className="text-5xl font-bold text-[#eafdff] mb-4 leading-tight">
             Welcome back,
