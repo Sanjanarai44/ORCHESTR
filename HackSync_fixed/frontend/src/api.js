@@ -64,9 +64,13 @@ export const adminTeamsApi = {
   getAll: (status = '') => nodeRequest(`/api/admin/teams${status ? `?status=${encodeURIComponent(status)}` : ''}`),
   getDraft: () => nodeRequest('/api/admin/teams?status=DRAFT'),
   getPublished: () => nodeRequest('/api/admin/teams?status=PUBLISHED'),
-  generate: (opts = {}) => nodeRequest('/api/admin/generate-teams', {
-    method: 'POST', body: JSON.stringify(opts),
-  }),
+ generate: (opts = {}) => nodeRequest('/api/admin/generate-teams', {
+  method: 'POST', body: JSON.stringify(opts),
+}),
+saveRules: (rules) => nodeRequest('/api/admin/team-rules', {
+  method: 'POST', body: JSON.stringify(rules),
+}),
+getRules: () => nodeRequest('/api/admin/team-rules'),
   approveAndPublish: () => nodeRequest('/api/admin/approve-publish-teams', {
     method: 'POST', body: JSON.stringify({}),
   }),
