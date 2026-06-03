@@ -1,5 +1,7 @@
 import express from "express";
+import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";
+import { emailQueue } from "../queues/emailQueue.js";
 
 const router = express.Router();
 const DEFAULT_RETRY_LIMIT = 80;
@@ -352,6 +354,7 @@ router.post("/approve-publish-teams", async (req, res) => {
     } catch {}
     return res.json({ success: true, message: `${updated.count} teams published`, publishedCount: updated.count });
   } catch (error) {
+    console.error('[Approve Publish Teams Error]', error);
     return res.status(500).json({ success: false, message: "Failed to publish teams", error: error.message });
   }
 });
