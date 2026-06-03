@@ -8,6 +8,7 @@ import JudgeDashboard from './pages/JudgeDashboard';
 import JudgeVerify from './pages/JudgeVerify';
 import JudgeEvaluate from './pages/JudgeEvaluate';
 import ParticipantDashboard from './pages/ParticipantDashboard';
+import ParticipantVerify from './pages/ParticipantVerify';
 
 function App() {
   const [view, setView] = useState('landing');
@@ -16,6 +17,9 @@ function App() {
   const [judgeToken, setJudgeToken] = useState(null);
   const [judgeName, setJudgeName] = useState('');
   const [judgeTeamId, setJudgeTeamId] = useState(null);
+  
+  const [participantToken, setParticipantToken] = useState(null);
+  const [participant, setParticipant] = useState(null);
 
   useEffect(() => {
     // Restore organizer session
@@ -29,11 +33,18 @@ function App() {
     // Magic link detection — judge clicks emailed link
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
+    const pToken = params.get('participantToken');
+    
     if (token) {
       window.history.replaceState({}, '', '/');
       localStorage.setItem('judge_token', token);
       setJudgeToken(token);
       setView('judge-verify');
+    } else if (pToken) {
+      window.history.replaceState({}, '', '/');
+      localStorage.setItem('participant_token', pToken);
+      setParticipantToken(pToken);
+      setView('participant-verify');
     }
   }, []);
 
@@ -99,6 +110,11 @@ function App() {
     const token = localStorage.getItem('judge_token');
     setJudgeToken(token);
     setView('judge-dashboard');
+  };
+
+  const handleParticipantVerified = (userData) => {
+    setParticipant({ id: userData.userId, name: userData.userName });
+    setView('participant-dashboard');
   };
 
   const eventConfig = currentEvent?.config || null;
@@ -185,11 +201,30 @@ function App() {
         />
       );
 
+    case 'participant-verify':
+      return (
+        <ParticipantVerify 
+          token={participantToken || localStorage.getItem('participant_token')}
+          onSuccess={handleParticipantVerified}
+        />
+      );
+
+    case 'participant-dashboard':
+      return (
+        <ParticipantDashboard
+          eventConfig={eventConfig}
+          eventId={eventId}
+          authenticatedParticipant={participant}
+          onBack={() => setView('landing')}
+        />
+      );
+
     case 'participant':
       return (
         <ParticipantDashboard
           eventConfig={eventConfig}
           eventId={eventId}
+          authenticatedParticipant={null}
           onBack={() => setView('landing')}
         />
       );

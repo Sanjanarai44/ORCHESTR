@@ -1,5 +1,7 @@
 import express from "express";
+import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";
+import { emailQueue } from "../queues/emailQueue.js";
 
 const router = express.Router();
 const DEFAULT_RETRY_LIMIT = 80;
@@ -180,12 +182,19 @@ router.post("/generate-teams", async (req, res) => {
 
 router.post("/approve-publish-teams", async (req, res) => {
   try {
-    const draftTeams = await prisma.team.findMany({ where: { status: "DRAFT" } });
+    const draftTeams = await prisma.team.findMany({ 
+      where: { status: "DRAFT" },
+      include: { members: true } 
+    });
     if (draftTeams.length === 0) return res.status(400).json({ success: false, message: "No draft teams to approve." });
+    
     const updated = await prisma.team.updateMany({ where: { status: "DRAFT" }, data: { status: "PUBLISHED" } });
+    
     try { await prisma.emailLog.create({ data: { jobId: `approval_${Date.now()}`, recipientId: "system", recipientEmail: "system@internal", recipientName: "System", emailType: "team_approval", status: "COMPLETED" } }); } catch {}
+    
     return res.json({ success: true, message: `${updated.count} teams published`, publishedCount: updated.count });
   } catch (error) {
+    console.error('[Approve Publish Teams Error]', error);
     return res.status(500).json({ success: false, message: "Failed to publish teams", error: error.message });
   }
 });

@@ -84,6 +84,15 @@ router.post('/send-judge-links', async (req, res) => {
     let sentCount = 0;
 
     for (const judge of judges) {
+      // Check if link was already sent
+      if (judge.jwtToken) {
+        // Double check EmailLog
+        const existingLog = await prisma.emailLog.findFirst({
+          where: { recipientId: judge.id, emailType: 'magic_link', status: { in: ['SENT', 'PENDING', 'COMPLETED'] } }
+        });
+        if (existingLog) continue;
+      }
+
       const token = jwt.sign(
         { judgeId: judge.id, eventId: 'event_1' },
         JWT_SECRET,
@@ -137,7 +146,6 @@ router.post('/send-judge-links', async (req, res) => {
 router.post('/send-participant-emails', async (req, res) => {
   try {
     const { emailType = 'welcome' } = req.body;
-    // FIXED: members: true — no participant relation in TeamMember
     const teams = await prisma.team.findMany({
       where: { status: 'PUBLISHED' },
       include: { members: true },
@@ -147,45 +155,71 @@ router.post('/send-participant-emails', async (req, res) => {
       return res.status(400).json({ success: false, message: 'No published teams found.' });
     }
 
+    const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
+    const jwtSecret = process.env.JWT_SECRET || 'secret';
     let sentCount = 0;
+
     for (const team of teams) {
       for (const member of team.members) {
         if (!member?.email) continue;
-        const jobId = `participant_${emailType}_${member.id}_${Date.now()}`;
+        
+        // Find corresponding participant to get ID
+        const participant = await prisma.participant.findUnique({ where: { email: member.email } });
+        if (!participant) continue;
 
+        // Check if an email of this type was already sent to this participant
+        const existingLog = await prisma.emailLog.findFirst({
+          where: {
+            recipientId: participant.id,
+            emailType,
+            status: { in: ['SENT', 'PENDING', 'COMPLETED'] }
+          }
+        });
+
+        if (existingLog) continue; // Skip if already sent or queued
+
+        const token = jwt.sign({ participantId: participant.id }, jwtSecret, { expiresIn: '30d' });
+        const portalLink = `${frontendUrl}/?participantToken=${token}`;
+
+        const jobId = `participant_${emailType}_${participant.id}_${Date.now()}`;
+
+        let logId;
         try {
-          await prisma.emailLog.create({
+          const createdLog = await prisma.emailLog.create({
             data: {
               jobId,
-              recipientId: member.id,
-              recipientEmail: member.email,
-              recipientName: member.name,
+              recipientId: participant.id,
+              recipientEmail: participant.email,
+              recipientName: participant.name,
               emailType,
               status: 'PENDING',
             },
           });
+          logId = createdLog.id;
         } catch {}
 
         try {
           await emailQueue.add('send_email', {
-            recipientId: member.id,
-            recipientEmail: member.email,
-            recipientName: member.name,
             emailType,
+            recipientId: participant.id,
+            recipientEmail: participant.email,
+            recipientName: participant.name,
             templateData: {
-              participantName: member.name,
+              participantName: participant.name,
               teamName: team.name,
-              teamMembers: team.members.map(m => m.name),
+              teammates: team.members.filter(m => m.id !== member.id).map(m => ({ name: m.name, email: m.email, skill: m.skill })),
+              portalLink
             },
+            logId
           }, { jobId });
         } catch (qErr) {
-          console.error(`Queue error for ${member.email}:`, qErr.message);
+          console.error(`Queue error for ${participant.email}:`, qErr.message);
         }
         sentCount++;
       }
     }
 
-    return res.json({ success: true, sentCount });
+    return res.json({ success: true, sentCount, message: `Emails queued for ${sentCount} participants` });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }

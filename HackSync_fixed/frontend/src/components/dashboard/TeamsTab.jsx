@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { adminTeamsApi } from "../../api";
+import { adminTeamsApi, judgesApi } from "../../api";
 
 function getInitials(name) {
   return String(name || "").split(" ").filter(Boolean).map(t => t[0]).join("").toUpperCase().slice(0, 2);
@@ -154,6 +154,26 @@ export default function TeamsTab() {
               Cancel
             </button>
           )}
+          <button
+            onClick={async () => {
+              setActionLoading(true);
+              setError("");
+              setSuccess("");
+              try {
+                const res = await judgesApi.sendParticipantEmails("welcome");
+                setSuccess(res.message || `Emails queued for ${res.sentCount} participants`);
+              } catch (e) {
+                setError(e.message || "Failed to send emails");
+              } finally {
+                setActionLoading(false);
+              }
+            }}
+            disabled={actionLoading || publishedTeams.length === 0}
+            className="flex items-center gap-2 h-10 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-all shadow-sm"
+          >
+            {actionLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">send</span>}
+            {actionLoading ? 'Sending...' : 'Send Participant Links'}
+          </button>
         </div>
       </section>
 

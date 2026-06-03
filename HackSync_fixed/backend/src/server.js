@@ -7,6 +7,7 @@ import adminTeamRoutes from "./routes/adminTeamRoutes.js";
 import adminJudgesRoutes from "./routes/adminJudgesRoutes.js";
 import emailLogsRoutes from "./routes/emailLogsRoutes.js";
 import judgeAuthRoutes from "./routes/judgeAuthRoutes.js";
+import otpRoutes from "./routes/otpRoutes.js";
 
 dotenv.config();
 
@@ -20,6 +21,7 @@ app.use("/api/admin", adminTeamRoutes);   // teams + generate + approve + stages
 app.use("/api/admin", adminJudgesRoutes); // judges CRUD + send links + assign
 app.use("/api/admin/emails", emailLogsRoutes);
 app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progress
+app.use("/api/otp", otpRoutes);           // send and verify OTP
 
 app.get("/", (req, res) => res.send("ORCHESTR Node Backend - Port 5000"));
 

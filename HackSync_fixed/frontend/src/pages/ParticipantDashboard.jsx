@@ -7,73 +7,9 @@ import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
+const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 
-// ── Email login gate ─────────────────────────────────────────────────────────
-function EmailGate({ onFound }) {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleLookup = async () => {
-    if (!email.trim()) return;
-    setLoading(true);
-    setError('');
-    try {
-      // FIXED: correct API path /api/admin/participants/by-email/
-      const res = await fetch(
-        `${NODE}/api/admin/participants/by-email/${encodeURIComponent(email.trim().toLowerCase())}`
-      );
-      const data = await res.json();
-      if (data.found && data.participant) {
-        onFound(data.participant);
-      } else {
-        setError('No participant found with that email. Check with your event organizer.');
-      }
-    } catch {
-      setError('Could not connect to the server. Make sure the backend is running.');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#eafdff] flex items-center justify-center px-4">
-      <div className="bg-white rounded-2xl shadow-xl border border-[#c1c8c2]/30 p-10 w-full max-w-md">
-        <div className="w-12 h-12 rounded-xl bg-[#012d1d] flex items-center justify-center mb-6">
-          <span className="material-symbols-outlined text-[#c1ecd4] text-[22px]">badge</span>
-        </div>
-        <h1 className="text-2xl font-bold text-[#012d1d] mb-1">Participant Portal</h1>
-        <p className="text-sm text-[#414844] mb-8">Enter your registered email to access your event dashboard.</p>
-
-        <label className="text-xs font-bold uppercase tracking-widest text-[#414844] block mb-2">Email Address</label>
-        <input
-          type="email"
-          value={email}
-          onChange={e => setEmail(e.target.value)}
-          onKeyDown={e => e.key === 'Enter' && handleLookup()}
-          placeholder="you@example.com"
-          className="w-full border border-[#c1c8c2] rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#012d1d] mb-3"
-        />
-        {error && <p className="text-xs text-red-600 mb-3">{error}</p>}
-
-        <button
-          onClick={handleLookup}
-          disabled={loading || !email.trim()}
-          className="w-full bg-[#012d1d] hover:bg-[#023d29] disabled:opacity-40 text-white font-bold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-        >
-          {loading
-            ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-            : <span className="material-symbols-outlined text-[18px]">login</span>}
-          {loading ? 'Looking up...' : 'Access My Dashboard'}
-        </button>
-
-        <p className="text-xs text-[#414844]/60 text-center mt-4">
-          Your email must be in the participant roster. Contact your organizer if you have trouble.
-        </p>
-      </div>
-    </div>
-  );
-}
+// Demo login gate removed as requested
 const STAGES = [
   { key: 'registered', label: 'Registered', icon: 'how_to_reg' },
   { key: 'team', label: 'Team Formation', icon: 'diversity_3' },
@@ -84,8 +20,15 @@ const STAGES = [
 ];
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
-export default function ParticipantDashboard({ eventConfig }) {
-  const [participant, setParticipant] = useState(null);
+export default function ParticipantDashboard({ eventConfig, authenticatedParticipant }) {
+  const [participant, setParticipant] = useState(authenticatedParticipant || {
+    id: 'demo-123',
+    name: 'Demo Participant',
+    email: 'demo@example.com',
+    college: 'Demo University',
+    skill: 'Frontend',
+    stage: 'roster'
+  });
   const [activeSection, setActiveSection] = useState('dashboard');
   const [countdown, setCountdown] = useState({ hours: 28, minutes: 44, seconds: 12 });
   const [team, setTeam] = useState(null);
@@ -125,12 +68,17 @@ export default function ParticipantDashboard({ eventConfig }) {
     async function load() {
       try {
         // Get full participant data including stage
-        const pRes = await fetch(`${NODE}/api/admin/participants/${participant.id}`);
-        const pData = await pRes.json();
-        if (pData.success) {
-  setParticipant(prev => ({ ...prev, ...pData.participant }));
-  setNotifications(pData.notifications || []);
-}
+        if (participant.id && participant.id.startsWith('demo-')) {
+          // It's a demo participant, skip backend load
+          setNotifications([]);
+        } else {
+          const pRes = await fetch(`${NODE}/api/admin/participants/${participant.id}`);
+          const pData = await pRes.json();
+          if (pData.success) {
+            setParticipant(prev => ({ ...prev, ...pData.participant }));
+            setNotifications(pData.notifications || []);
+          }
+        }
 
         // Load ALL published teams and find the participant's team
         const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED`);
@@ -169,7 +117,7 @@ export default function ParticipantDashboard({ eventConfig }) {
 
     try {
       const res = await fetch(
-  'https://orchestr-ai.onrender.com/compatibility-summary',
+        `${AI}/compatibility-summary`,
         {
           method: 'POST',
           headers: {
@@ -218,10 +166,7 @@ export default function ParticipantDashboard({ eventConfig }) {
     }
   };
 
-  // Show email gate if no participant selected
-  if (!participant) {
-    return <EmailGate onFound={(p) => setParticipant(p)} />;
-  }
+  // Email gate removed, defaults to demo data or authenticated participant
 
   if (loading) {
     return (
