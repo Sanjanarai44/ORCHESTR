@@ -236,7 +236,6 @@ const emailWorker = new Worker(
       });
     } else {
       console.log(`[EmailWorker] ⚠️ MOCK MODE: SendGrid API Key missing. Simulating successful send.`);
-      console.log(`[EmailWorker] Subject: ${subject}`);
       if (emailType === 'magic_link') {
         console.log(`[EmailWorker] Magic Link: ${templateData?.magicLink}`);
       }

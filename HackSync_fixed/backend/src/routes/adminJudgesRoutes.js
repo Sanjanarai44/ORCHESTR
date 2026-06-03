@@ -84,14 +84,7 @@ router.post('/send-judge-links', async (req, res) => {
     let sentCount = 0;
 
     for (const judge of judges) {
-      // Check if link was already sent
-      if (judge.jwtToken) {
-        // Double check EmailLog
-        const existingLog = await prisma.emailLog.findFirst({
-          where: { recipientId: judge.id, emailType: 'magic_link', status: { in: ['SENT', 'PENDING', 'COMPLETED'] } }
-        });
-        if (existingLog) continue;
-      }
+
 
       const token = jwt.sign(
         { judgeId: judge.id, eventId: 'event_1' },
@@ -167,16 +160,7 @@ router.post('/send-participant-emails', async (req, res) => {
         const participant = await prisma.participant.findUnique({ where: { email: member.email } });
         if (!participant) continue;
 
-        // Check if an email of this type was already sent to this participant
-        const existingLog = await prisma.emailLog.findFirst({
-          where: {
-            recipientId: participant.id,
-            emailType,
-            status: { in: ['SENT', 'PENDING', 'COMPLETED'] }
-          }
-        });
 
-        if (existingLog) continue; // Skip if already sent or queued
 
         const token = jwt.sign({ participantId: participant.id }, jwtSecret, { expiresIn: '30d' });
         const portalLink = `${frontendUrl}/?participantToken=${token}`;
