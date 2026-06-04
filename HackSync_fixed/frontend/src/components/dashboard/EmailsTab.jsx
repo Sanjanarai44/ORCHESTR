@@ -9,7 +9,8 @@ export default function EmailsTab() {
   const fetchLogs = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`${import.meta.env.VITE_JUDGE_API_URL || 'http://localhost:8001'}/api/admin/email-logs`);
+      const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
+      const res = await fetch(`${NODE}/api/admin/emails`);
       const data = await res.json();
       if (res.ok && data.success) {
         setLogs(data.logs);
@@ -29,7 +30,8 @@ export default function EmailsTab() {
   const handleRetry = async (id) => {
     setRetryingIds(prev => ({ ...prev, [id]: true }));
     try {
-      const res = await fetch(`${import.meta.env.VITE_JUDGE_API_URL || 'http://localhost:8001'}/api/admin/emails/${id}/retry`, {
+      const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
+      const res = await fetch(`${NODE}/api/admin/emails/${id}/retry`, {
         method: 'POST'
       });
       const data = await res.json();
@@ -116,15 +118,13 @@ export default function EmailsTab() {
                         {log.sentAt ? new Date(log.sentAt).toLocaleString() : '-'}
                       </td>
                       <td className="px-6 py-4 text-right">
-                        {log.status === 'FAILED' && (
-                          <button
-                            onClick={() => handleRetry(log.id)}
-                            disabled={retryingIds[log.id]}
-                            className="text-xs font-bold text-stone-900 dark:text-white hover:underline disabled:opacity-50"
-                          >
-                            {retryingIds[log.id] ? 'Retrying...' : 'Retry'}
-                          </button>
-                        )}
+                        <button
+                          onClick={() => handleRetry(log.id)}
+                          disabled={log.status !== 'FAILED' || retryingIds[log.id]}
+                          className="text-xs font-bold text-stone-900 dark:text-white hover:underline disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:no-underline"
+                        >
+                          {retryingIds[log.id] ? 'Retrying...' : 'Retry'}
+                        </button>
                       </td>
                     </tr>
                   ))
