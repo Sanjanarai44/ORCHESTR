@@ -3,7 +3,8 @@ import React from 'react';
 export default function TeamAndResources({
   team,
   compatibilitySummary,
-  compatibilityLoading
+  compatibilityLoading,
+  onOpenAIMentor
 }) {
   const resources = [
     { title: 'API Documentation', icon: 'menu_book', desc: 'Core endpoint schemas' },
@@ -31,15 +32,12 @@ export default function TeamAndResources({
             </p>
           </div>
 
-          <button className="bg-[#012d1d] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-[#012d1d]/90 transition-colors shadow-sm">
-            <span
-              className="material-symbols-outlined text-sm"
-              style={{ fontVariationSettings: "'FILL' 1" }}
-            >
-              psychology
-            </span>
-            Find a Mentor
-          </button>
+          <div className="flex gap-3">
+            <button onClick={onOpenAIMentor} className="bg-[#012d1d] text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center gap-2 hover:bg-[#012d1d]/90 transition-colors shadow-sm">
+              <span className="material-symbols-outlined text-sm" style={{ fontVariationSettings: "'FILL' 1" }}>smart_toy</span>
+              AI Mentor
+            </button>
+          </div>
         </div>
 
         <div className="space-y-6 flex-1 flex flex-col justify-center">
@@ -79,7 +77,7 @@ export default function TeamAndResources({
       </div>
 
       {/* AI Compatibility Card */}
-      <div className="bg-[#dff6ea] rounded-xl p-8 flex flex-col border border-[#c1c8c2]/20 shadow-sm min-h-[500px]">
+      <div className="bg-[#dff6ea] rounded-xl p-8 flex flex-col border border-[#c1c8c2]/20 shadow-sm h-full">
         <div className="mb-5">
           <h2 className="text-xl font-bold text-[#012d1d] flex items-center gap-2">
             <span className="material-symbols-outlined">
@@ -95,10 +93,10 @@ export default function TeamAndResources({
 
         <div className="bg-white/60 rounded-xl p-5 flex-1">
           <p className="text-sm text-[#414844] leading-7">
-  {compatibilityLoading
-    ? 'Generating compatibility summary...'
-    : compatibilitySummary}
-</p>
+            {compatibilityLoading
+              ? 'Generating compatibility summary...'
+              : (compatibilitySummary || 'Waiting for team members to generate AI Compatibility Synergy...')}
+          </p>
         </div>
       </div>
     </div>

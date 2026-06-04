@@ -5,6 +5,7 @@ import ParticipantHeader from '../components/participant/ParticipantHeader';
 import WelcomeHero from '../components/participant/WelcomeHero';
 import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
+import AIMentor from './AIMentor';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -20,7 +21,7 @@ const STAGES = [
 ];
 
 // ── Main dashboard ───────────────────────────────────────────────────────────
-export default function ParticipantDashboard({ eventConfig, authenticatedParticipant }) {
+export default function ParticipantDashboard({ eventConfig, eventId, authenticatedParticipant }) {
   const [participant, setParticipant] = useState(authenticatedParticipant || {
     id: 'demo-123',
     name: 'Demo Participant',
@@ -30,6 +31,7 @@ export default function ParticipantDashboard({ eventConfig, authenticatedPartici
     stage: 'roster'
   });
   const [activeSection, setActiveSection] = useState('dashboard');
+  const [showAIMentor, setShowAIMentor] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 28, minutes: 44, seconds: 12 });
   const [team, setTeam] = useState(null);
   const [notifications, setNotifications] = useState([]);
@@ -81,7 +83,8 @@ export default function ParticipantDashboard({ eventConfig, authenticatedPartici
         }
 
         // Load ALL published teams and find the participant's team
-        const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED`);
+        const targetEventId = eventId || eventConfig?.id || 1;
+        const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED&eventId=${targetEventId}`);
         const tData = await tRes.json();
         const teams = tData.teams || [];
         
@@ -92,11 +95,25 @@ export default function ParticipantDashboard({ eventConfig, authenticatedPartici
         );
 
         if (!myTeam) {
-          const dRes = await fetch(`${NODE}/api/admin/teams?status=DRAFT`);
+          const dRes = await fetch(`${NODE}/api/admin/teams?status=DRAFT&eventId=${targetEventId}`);
           const dData = await dRes.json();
           myTeam = (dData.teams || []).find(t =>
             t.members?.some(m => m.email === participant.email)
           );
+        }
+        
+        // Add a fallback team if demo user isn't in any actual team
+        if (!myTeam && participant.id?.startsWith('demo-')) {
+          myTeam = {
+            id: 'demo-team-1',
+            name: 'Quantum Pioneers',
+            status: 'PUBLISHED',
+            members: [
+              { name: participant.name, email: participant.email, skill: participant.skill },
+              { name: 'Alice Chen', email: 'alice@example.com', skill: 'Backend' },
+              { name: 'Bob Smith', email: 'bob@example.com', skill: 'AI/ML' }
+            ]
+          };
         }
 
         setTeam(myTeam || null);
@@ -186,28 +203,41 @@ console.log("PARTICIPANT STAGE:", participant.stage);
       <ParticipantSidebar activeSection={activeSection} onNavClick={handleNavClick} eventConfig={eventConfig} />
 
       <main ref={scrollContainerRef} onScroll={handleScroll}
-        className="flex-1 ml-64 overflow-y-auto scroll-smooth">
+        className="flex-1 ml-64 overflow-y-auto scroll-smooth flex flex-col h-screen">
         <ParticipantHeader participant={participant} onLogout={() => setParticipant(null)} />
 
-        <div className="px-16 py-2 space-y-12 pb-24">
-          <div ref={sectionRefs.dashboard} id="dashboard" className="pt-4">
-            <WelcomeHero participant={participant} notifications={notifications} eventConfig={eventConfig} />
+        {showAIMentor ? (
+          <div className="flex-1 p-6 overflow-hidden">
+            <AIMentor 
+              eventId={eventConfig?.id || eventId || 1} 
+              teamId={team?.id} 
+              teamName={team?.name} 
+              participantId={participant?.id}
+              onBack={() => setShowAIMentor(false)} 
+            />
           </div>
+        ) : (
+          <div className="px-16 py-2 space-y-12 pb-24">
+            <div ref={sectionRefs.dashboard} id="dashboard" className="pt-4">
+              <WelcomeHero participant={participant} notifications={notifications} eventConfig={eventConfig} />
+            </div>
 
-          <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
-            <SimpleStageTracker participant={participant} />
-            <EventJourney participant={participant} eventConfig={eventConfig} />
-          </div>
+            <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
+              <SimpleStageTracker participant={participant} />
+              <EventJourney participant={participant} eventConfig={eventConfig} />
+            </div>
 
-          <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6">
-            <TeamAndResources
-  team={team}
-  eventConfig={eventConfig}
-  compatibilitySummary={compatibilitySummary}
-  compatibilityLoading={compatibilityLoading}
-/>
+            <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6">
+              <TeamAndResources
+                team={team}
+                eventConfig={eventConfig}
+                compatibilitySummary={compatibilitySummary}
+                compatibilityLoading={compatibilityLoading}
+                onOpenAIMentor={() => setShowAIMentor(true)}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

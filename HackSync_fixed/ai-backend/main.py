@@ -3,11 +3,40 @@ AI Backend - Port 8000
 ONLY handles AI/LLM calls and event configuration via conversational AI.
 ALL data storage is in PostgreSQL via the Node backend (port 5000).
 """
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
-import os, json
+import os, json, sqlite3, re
+
+# Initialize Mentor History DB
+def init_mentor_db():
+    conn = sqlite3.connect("eventflow.db")
+    c = conn.cursor()
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mentor_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            event_id INTEGER,
+            team_id INTEGER,
+            role TEXT,
+            content TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS mentor_context (
+            team_id INTEGER PRIMARY KEY,
+            event_id INTEGER,
+            problem_description TEXT,
+            session_notes TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+init_mentor_db()
 
 load_dotenv()
 
@@ -231,3 +260,144 @@ def override_anomaly(flag_id: str, data: dict):
 @app.post("/api/anomalies/{flag_id}/dismiss")
 def dismiss_anomaly(flag_id: str):
     return {"success": True}
+
+# ═══════════════════════════════════════════════
+# AI MENTOR
+# ═══════════════════════════════════════════════
+
+class MentorRequest(BaseModel):
+    event_id: int
+    team_id: int
+    message: str
+
+@app.post("/ai-mentor")
+def ai_mentor(req: MentorRequest):
+    conn = sqlite3.connect("eventflow.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    
+    try:
+        # Fetch event and team context
+        c.execute("SELECT name, config FROM events WHERE id = ?", (req.event_id,))
+        event = c.fetchone()
+        
+        c.execute("SELECT name FROM teams WHERE id = ?", (req.team_id,))
+        team = c.fetchone()
+        
+        event_name = event["name"] if event else "Unknown Event"
+        event_config = json.loads(event["config"]) if event and event["config"] else {}
+        team_name = team["name"] if team else f"Team {req.team_id}"
+        
+        # Save user message
+        c.execute(
+            "INSERT INTO mentor_history (event_id, team_id, role, content) VALUES (?, ?, ?, ?)",
+            (req.event_id, req.team_id, "user", req.message)
+        )
+        conn.commit()
+
+        # Get history
+        c.execute(
+            "SELECT role, content FROM mentor_history WHERE event_id = ? AND team_id = ? ORDER BY id ASC",
+            (req.event_id, req.team_id)
+        )
+        history = c.fetchall()
+
+        # Get context to check for problem_description
+        c.execute("SELECT problem_description FROM mentor_context WHERE team_id = ?", (req.team_id,))
+        context_row = c.fetchone()
+        problem_description = context_row["problem_description"] if context_row and context_row["problem_description"] else ""
+
+        system_prompt = f"""You are an AI mentor for the event '{event_name}'.
+Event details: {json.dumps(event_config)}
+You are mentoring '{team_name}'.
+Their problem description: '{problem_description}'
+
+CRITICAL INSTRUCTIONS:
+1. PROBLEM REQUIREMENT: If the team's problem description is empty or missing, your FIRST and ONLY task is to politely ask them to provide a problem description or explain the specific problem they are trying to solve. Do not answer any technical questions until they do.
+2. CONTEXT AWARENESS: You must politely refuse to answer ANY out-of-context or off-topic questions (e.g. random Leetcode problems, unrelated topics). Remind them to stay focused on their specific project and the event.
+3. EXPLANATORY SOCRATIC MODE: You must act as a guide. You ARE allowed to explain architectural concepts, algorithms, and theory clearly to help them understand. However, you MUST ALWAYS end your response with a guiding question to prompt their own critical thinking.
+4. NO DIRECT CODE: You are STRICTLY FORBIDDEN from providing direct solutions, commands, or raw code snippets. If they ask for code, explain the concept conceptually and ask them how they might implement it.
+"""
+        messages = [{"role": "system", "content": system_prompt}]
+        for row in history:
+            messages.append({"role": row["role"], "content": row["content"]})
+
+        response = client.chat.completions.create(
+            model="openai/gpt-4o-mini",
+            messages=messages
+        )
+        reply = response.choices[0].message.content
+
+        # Post-Generation Check: RegEx layer
+        code_regex = re.compile(
+            r"```|`|^\s*(def|class|function|const|let|var|import|export|if|for|while|return)\b",
+            re.IGNORECASE | re.MULTILINE
+        )
+        if code_regex.search(reply):
+            reply = "I noticed you might be looking for a direct solution. How might you approach this problem conceptually instead?"
+
+        # Save AI response
+        c.execute(
+            "INSERT INTO mentor_history (event_id, team_id, role, content) VALUES (?, ?, ?, ?)",
+            (req.event_id, req.team_id, "assistant", reply)
+        )
+        conn.commit()
+        
+        return {"reply": reply}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+class ContextRequest(BaseModel):
+    event_id: int
+    team_id: int
+    problem_description: str = None
+    session_notes: str = None
+
+@app.get("/ai-mentor/init")
+def ai_mentor_init(event_id: int, team_id: int):
+    conn = sqlite3.connect("eventflow.db")
+    conn.row_factory = sqlite3.Row
+    c = conn.cursor()
+    try:
+        # Get history
+        c.execute("SELECT role, content FROM mentor_history WHERE event_id = ? AND team_id = ? ORDER BY id ASC", (event_id, team_id))
+        history = [dict(row) for row in c.fetchall()]
+
+        # Get context
+        c.execute("SELECT problem_description, session_notes FROM mentor_context WHERE team_id = ?", (team_id,))
+        context = c.fetchone()
+        
+        return {
+            "history": history,
+            "problem_description": context["problem_description"] if context else "",
+            "session_notes": context["session_notes"] if context else ""
+        }
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
+
+@app.post("/ai-mentor/context")
+def update_ai_mentor_context(req: ContextRequest):
+    conn = sqlite3.connect("eventflow.db")
+    c = conn.cursor()
+    try:
+        c.execute("SELECT 1 FROM mentor_context WHERE team_id = ?", (req.team_id,))
+        exists = c.fetchone()
+        
+        if exists:
+            if req.problem_description is not None:
+                c.execute("UPDATE mentor_context SET problem_description = ?, updated_at = CURRENT_TIMESTAMP WHERE team_id = ?", (req.problem_description, req.team_id))
+            if req.session_notes is not None:
+                c.execute("UPDATE mentor_context SET session_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE team_id = ?", (req.session_notes, req.team_id))
+        else:
+            c.execute("INSERT INTO mentor_context (team_id, event_id, problem_description, session_notes) VALUES (?, ?, ?, ?)", 
+                      (req.team_id, req.event_id, req.problem_description or "", req.session_notes or ""))
+        conn.commit()
+        return {"success": True}
+    except Exception as e:
+        return {"error": str(e)}
+    finally:
+        conn.close()
