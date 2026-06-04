@@ -15,9 +15,10 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   const [explaining, setExplaining] = useState({});
 
   const fetchData = async () => {
+    if (!eventId) return;
     try {
       // Get all published teams
-      const teamsRes = await fetch(`${NODE}/api/admin/teams?status=ALL`);
+      const teamsRes = await fetch(`${NODE}/api/admin/teams?status=ALL&eventId=${eventId}`);
       const teamsData = await teamsRes.json();
       const allTeams = teamsData.teams || [];
 
@@ -57,7 +58,7 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { if (eventId) fetchData(); }, [eventId]);
 
   const handleResolve = async (anomalyId, action) => {
     try {

@@ -107,15 +107,6 @@ export default function OrganizerLogin({ onLogin }) {
               : <span className="material-symbols-outlined text-[18px]">{mode === "login" ? "login" : "person_add"}</span>}
             {loading ? "Please wait..." : mode === "login" ? "Sign In to Platform" : "Create Account"}
           </button>
-
-          {/* Demo credentials hint */}
-          {mode === "login" && (
-            <div className="mt-5 p-4 bg-[#e8f5ef] rounded-xl border border-[#a5d0b9]">
-              <p className="text-xs font-bold text-[#012d1d] mb-1">Demo credentials</p>
-              <p className="text-xs text-[#3d5a47]">Email: <span className="font-mono font-bold">admin@wiseti.com</span></p>
-              <p className="text-xs text-[#3d5a47]">Password: <span className="font-mono font-bold">admin123</span></p>
-            </div>
-          )}
         </div>
       </div>
     </div>

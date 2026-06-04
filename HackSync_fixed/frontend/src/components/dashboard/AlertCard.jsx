@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { teamsApi, scoresApi, aiApi } from "../../api";
 
-function AlertCard({ eventId = 1 }) {
+function AlertCard({ eventId }) {
   const [anomaly, setAnomaly] = useState(null);
   const [explanation, setExplanation] = useState("");
   const [loading, setLoading] = useState(false);
@@ -10,8 +10,9 @@ function AlertCard({ eventId = 1 }) {
   // on mount: scan all teams for score anomalies
   useEffect(() => {
     const detect = async () => {
-      try {
-        const res = await teamsApi.getAll(eventId);
+  if (!eventId) return;
+  try {
+    const res = await teamsApi.getAll(eventId);
         const teams = res.teams || res || [];
 
         for (const team of teams) {
