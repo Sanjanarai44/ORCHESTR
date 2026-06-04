@@ -109,19 +109,29 @@ router.get("/participants", async (req, res) => {
 
     return res.json({
       success: true,
-      data: participants.map(p => ({
-        id: p.id, name: p.name, email: p.email,
-        college: p.college, skill: p.skill,
-        stage: p.stage || "roster",
-        createdAt: p.createdAt,
-        teamName: null, teamStatus: null,
-      })),
-      participants: participants.map(p => ({
-        id: p.id, name: p.name, email: p.email,
-        college: p.college, skill: p.skill,
-        stage: p.stage || "roster",
-        createdAt: p.createdAt,
-      })),
+      data: participants.map(p => {
+        const token = jwt.sign({ participantId: p.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+        const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
+        return {
+          id: p.id, name: p.name, email: p.email,
+          college: p.college, skill: p.skill,
+          stage: p.stage || "roster",
+          createdAt: p.createdAt,
+          magicLink,
+          teamName: null, teamStatus: null,
+        };
+      }),
+      participants: participants.map(p => {
+        const token = jwt.sign({ participantId: p.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+        const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
+        return {
+          id: p.id, name: p.name, email: p.email,
+          college: p.college, skill: p.skill,
+          stage: p.stage || "roster",
+          createdAt: p.createdAt,
+          magicLink,
+        };
+      }),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: "Failed to fetch participants", error: error.message });

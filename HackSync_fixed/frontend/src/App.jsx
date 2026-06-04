@@ -21,6 +21,7 @@ function App() {
   
   const [participantToken, setParticipantToken] = useState(null);
   const [participant, setParticipant] = useState(null);
+  const [mentorTeam, setMentorTeam] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

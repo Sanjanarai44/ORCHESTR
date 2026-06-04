@@ -43,6 +43,7 @@ export default function ParticipantsTab({ eventId }) {
             roleColor,
             team: hacker.teamName ? `Teamed (${hacker.teamName})` : "Looking for Team",
             looking: !hacker.teamName,
+            magicLink: hacker.magicLink,
             date: hacker.createdAt
               ? new Date(hacker.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
               : "Recently Added",
@@ -289,12 +290,27 @@ export default function ParticipantsTab({ eventId }) {
                       </td>
                       <td className="py-4 px-6 text-stone-400 text-xs">{person.date}</td>
                       <td className="py-4 px-6 text-right" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => handleDeleteParticipant(person.id)}
-                          className="text-stone-400 hover:text-red-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
-                        >
-                          <span className="material-symbols-outlined text-[20px]">delete</span>
-                        </button>
+                        <div className="flex justify-end gap-2">
+                          <button
+                            onClick={() => {
+                              if (person.magicLink) {
+                                navigator.clipboard.writeText(person.magicLink);
+                                alert("Magic Link copied to clipboard!");
+                              }
+                            }}
+                            className="text-stone-400 hover:text-blue-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
+                            title="Copy Magic Link"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">link</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteParticipant(person.id)}
+                            className="text-stone-400 hover:text-red-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
+                            title="Delete Participant"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">delete</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
