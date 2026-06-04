@@ -238,6 +238,10 @@ const emailWorker = new Worker(
       console.log(`[EmailWorker] ⚠️ MOCK MODE: SendGrid API Key missing. Simulating successful send.`);
       if (emailType === 'magic_link') {
         console.log(`[EmailWorker] Magic Link: ${templateData?.magicLink}`);
+      } else if (emailType === 'otp') {
+        console.log(`[EmailWorker] OTP Code: ${templateData?.code}`);
+      } else if (emailType === 'welcome') {
+        console.log(`[EmailWorker] Portal Link: ${templateData?.portalLink}`);
       }
     }
 

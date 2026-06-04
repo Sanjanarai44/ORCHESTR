@@ -8,6 +8,7 @@ import JudgeDashboard from './pages/JudgeDashboard';
 import JudgeVerify from './pages/JudgeVerify';
 import JudgeEvaluate from './pages/JudgeEvaluate';
 import ParticipantDashboard from './pages/ParticipantDashboard';
+import ParticipantVerify from './pages/ParticipantVerify';
 import { eventsApi } from './api';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');
     const judgeId = params.get('judge');
+    const partToken = params.get('participantToken');
 
     if (token) {
       window.history.replaceState({}, '', '/');
@@ -43,6 +45,16 @@ function App() {
       localStorage.setItem('judge_id', judgeId);
       setJudgeToken(judgeId);
       setView('judge-verify');
+      return;
+    }
+
+    if (partToken) {
+      window.history.replaceState({}, '', '/');
+      localStorage.removeItem('organizer');
+      localStorage.removeItem('current_event');
+      localStorage.setItem('participant_token', partToken);
+      setParticipantToken(partToken);
+      setView('participant-verify');
       return;
     }
 

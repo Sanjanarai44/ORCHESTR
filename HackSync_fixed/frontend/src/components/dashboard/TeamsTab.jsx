@@ -318,7 +318,7 @@ export default function TeamsTab({ eventId }) {
               setError("");
               setSuccess("");
               try {
-                const res = await judgesApi.sendParticipantEmails("welcome");
+                const res = await judgesApi.sendParticipantEmails(eventId, "welcome");
                 setSuccess(res.message || `Emails queued for ${res.sentCount} participants`);
               } catch (e) {
                 setError(e.message || "Failed to send emails");

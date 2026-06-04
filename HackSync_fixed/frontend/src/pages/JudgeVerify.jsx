@@ -3,6 +3,22 @@ import { judgeApi } from '../api';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
+const Wrapper = ({ children }) => (
+  <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+    <div className="w-full max-w-md">
+      <div className="text-center mb-8">
+        <div className="inline-flex items-center gap-2 bg-stone-900 text-white px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
+          <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
+          AlgoRythm EventFlow
+        </div>
+      </div>
+      <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+        {children}
+      </div>
+    </div>
+  </div>
+);
+
 export default function JudgeVerify({ onSuccess, token }) {
   const [state, setstate] = useState('loading'); // 'loading' | 'otp' | 'success' | 'error'
   const [errorType, setErrorType] = useState(null);
@@ -83,21 +99,7 @@ export default function JudgeVerify({ onSuccess, token }) {
     }
   };
 
-  const Wrapper = ({ children }) => (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-stone-900 text-white px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            AlgoRythm EventFlow
-          </div>
-        </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
+
 
   if (state === 'loading') {
     return (

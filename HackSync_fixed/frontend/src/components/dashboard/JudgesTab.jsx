@@ -85,6 +85,7 @@ export default function JudgesTab({ eventConfig, eventId }) {
     setIsUploading(true);
     const formData = new FormData();
     formData.append('file', file);
+    if (eventId) formData.append('eventId', eventId);
     try {
       const res = await fetch(`${NODE_URL}/api/admin/upload-judges`, {
         method: 'POST',

@@ -4,10 +4,7 @@ import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('[FATAL] JWT_SECRET env var not set! Judge links will not work.');
-}
+const getJwtSecret = () => process.env.JWT_SECRET || 'secret';
 
 function extractToken(req) {
   const { token } = req.query;
@@ -27,7 +24,7 @@ router.get('/verify', async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, getJwtSecret());
     } catch (err) {
       return res.status(401).json({
         success: false,
@@ -68,7 +65,7 @@ router.get('/teams', async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(actualToken, JWT_SECRET);
+      decoded = jwt.verify(actualToken, getJwtSecret());
     } catch (err) {
       return res.status(401).json({ success: false, detail: 'Invalid or expired token' });
     }
@@ -133,7 +130,7 @@ router.post('/evaluate', async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(actualToken, JWT_SECRET);
+      decoded = jwt.verify(actualToken, getJwtSecret());
     } catch {
       return res.status(401).json({ success: false, detail: 'Invalid token' });
     }
@@ -188,7 +185,7 @@ router.get('/progress', async (req, res) => {
   try {
     const actualToken = extractToken(req);
     if (!actualToken) return res.status(401).json({ success: false });
-    const decoded = jwt.verify(actualToken, JWT_SECRET);
+    const decoded = jwt.verify(actualToken, getJwtSecret());
     const judge = await prisma.judge.findUnique({ where: { id: decoded.judgeId } });
     const assignedIds = JSON.parse(judge?.assignedTeams || '[]');
     const evaluated = await prisma.evaluation.count({ where: { judgeId: decoded.judgeId } });

@@ -42,7 +42,7 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
     for (const row of results) {
       if (!row.email) continue;
       const skill = normalizeSkill(row.skill || row.role || "Frontend");
-      await prisma.participant.upsert({
+      const participant = await prisma.participant.upsert({
         where: { eventId_email: { eventId, email: row.email.trim() } },
         update: {
           name: row.name?.trim(),
@@ -73,11 +73,15 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
       });
       
       await emailQueue.add('send_email', {
-        type: 'magic_link',
+        emailType: 'magic_link',
         recipientId: participant.id,
-        email: participant.email,
-        name: participant.name,
-        link: portalLink,
+        recipientEmail: participant.email,
+        recipientName: participant.name,
+        templateData: {
+          judgeName: participant.name,
+          magicLink: portalLink,
+          expiryHours: 720
+        },
         logId: emailLog.id
       }, { jobId: `magic_link_participant_${participant.id}_${Date.now()}` });
 
