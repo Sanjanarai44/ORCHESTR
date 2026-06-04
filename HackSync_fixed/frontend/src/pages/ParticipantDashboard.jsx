@@ -69,6 +69,10 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
 
     async function load() {
       try {
+        let currentEmail = participant.email;
+
+        let currentEventId = eventId || eventConfig?.id;
+
         // Get full participant data including stage
         if (participant.id && participant.id.startsWith('demo-')) {
           // It's a demo participant, skip backend load
@@ -79,11 +83,13 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
           if (pData.success) {
             setParticipant(prev => ({ ...prev, ...pData.participant }));
             setNotifications(pData.notifications || []);
+            currentEmail = pData.participant.email || currentEmail;
+            currentEventId = currentEventId || pData.participant.eventId;
           }
         }
 
         // Load ALL published teams and find the participant's team
-        const targetEventId = eventId || eventConfig?.id || 1;
+        const targetEventId = currentEventId || 1;
         const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED&eventId=${targetEventId}`);
         const tData = await tRes.json();
         const teams = tData.teams || [];
@@ -91,14 +97,14 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
 
         // Also check DRAFT teams if not found in PUBLISHED
         let myTeam = teams.find(t =>
-          t.members?.some(m => m.email === participant.email)
+          t.members?.some(m => m.email === currentEmail)
         );
 
         if (!myTeam) {
           const dRes = await fetch(`${NODE}/api/admin/teams?status=DRAFT&eventId=${targetEventId}`);
           const dData = await dRes.json();
           myTeam = (dData.teams || []).find(t =>
-            t.members?.some(m => m.email === participant.email)
+            t.members?.some(m => m.email === currentEmail)
           );
         }
         
