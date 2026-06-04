@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from "react";
 import { activityApi } from "../../api";
 
-function ActivityFeed({ eventId = 1 }) {
+function ActivityFeed({ eventId}) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = async () => {
-      try {
-        const res = await activityApi.getLog(eventId);
+  if (!eventId) return;
+  try {
+    const res = await activityApi.getLog(eventId);
         setLogs(res.logs || []);
       } catch (err) {
         console.error(err);

@@ -237,16 +237,23 @@ router.get("/events", async (req, res) => {
     });
     return res.json({
       success: true,
-      events: events.map(e => ({
-        id: e.id,
-        name: e.name,
-        event_type: e.eventType,
-        status: e.status,
-        config: typeof e.config === "string" ? JSON.parse(e.config) : e.config,
-        created_at: e.createdAt,
-        participant_count: 0,
-        team_count: 0,
-      })),
+      // AFTER
+events: await Promise.all(events.map(async e => {
+  const [participant_count, team_count] = await Promise.all([
+    prisma.participant.count({ where: { eventId: e.id } }),
+    prisma.team.count({ where: { eventId: e.id } }),
+  ]);
+  return {
+    id: e.id,
+    name: e.name,
+    event_type: e.eventType,
+    status: e.status,
+    config: typeof e.config === "string" ? JSON.parse(e.config) : e.config,
+    created_at: e.createdAt,
+    participant_count,
+    team_count,
+  };
+})),
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
