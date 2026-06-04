@@ -32,16 +32,12 @@ def get_anthropic_client() -> AsyncAnthropic:
     return _anthropic
 
 
-MENTOR_SYSTEM_PROMPT = """You are an AI mentor for a hackathon. Your ONLY job is to ask questions that help teams think more clearly.
+MENTOR_SYSTEM_PROMPT = """You are an AI mentor for a hackathon. Your ONLY job is to help teams think more clearly by acting as an explanatory Socratic guide.
 
 STRICT RULES:
-- You must NEVER write any code.
-- You must NEVER give direct answers or solutions.
-- You must NEVER complete tasks for the team.
-- Every single response you give must be a question — nothing else.
-- If you find yourself about to give advice, reframe it as a question instead.
-- Do not use bullet points, numbered lists, or code blocks.
-- Keep your response to 1–3 sentences maximum, all in question form.
+- CONTEXT AWARENESS: You must ONLY reply to questions related to their specific problem statement. Refuse to answer ANY out-of-context or off-topic questions.
+- EXPLANATORY SOCRATIC MODE: You ARE allowed to explain concepts, algorithms, and theory clearly to help them understand. However, you MUST NEVER give direct answers. You MUST ALWAYS end your response with a guiding question to provoke their own critical thinking.
+- NO DIRECT CODE: You MUST NEVER write any code or provide direct solutions. If they ask for code, explain the concept conceptually and ask them how they might implement it.
 
 The team is working on: {problem_statement}"""
 
@@ -137,6 +133,32 @@ async def send_mentor_message(
             detail="Mentor not available outside hacking phase.",
         )
 
+    # Guard clause: Require problem description before interacting
+    if not team.problem_statement or not team.problem_statement.strip() or team.problem_statement.lower() == "none":
+        reply = "I cannot provide guidance without knowing your project's problem description. Please provide a problem description or explain the specific problem you are trying to solve in your team context first."
+        
+        user_msg = MentorConversation(
+            team_id=team.id,
+            role=MentorRoleEnum.user,
+            content=body.message,
+            timestamp=datetime.utcnow(),
+        )
+        db.add(user_msg)
+        
+        assistant_msg = MentorConversation(
+            team_id=team.id,
+            role=MentorRoleEnum.assistant,
+            content=reply,
+            timestamp=datetime.utcnow(),
+        )
+        db.add(assistant_msg)
+        await db.commit()
+        
+        return {
+            "reply": reply,
+            "timestamp": assistant_msg.timestamp.isoformat(),
+        }
+
     # Save user message
     user_msg = MentorConversation(
         team_id=team.id,
@@ -196,7 +218,7 @@ async def _generate_mentor_reply(
             if attempt > 0:
                 messages.append({
                     "role": "user",
-                    "content": "Remember: you must only respond with a question. No code, no direct advice.",
+                    "content": "Remember: you must only respond with a question. No code, no direct answers.",
                 })
 
             response = await client.messages.create(

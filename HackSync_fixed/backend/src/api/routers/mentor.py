@@ -15,14 +15,14 @@ from src.core.websocket import ws_manager
 from src.schemas.common import *
 
 router = APIRouter()
-MENTOR_SYSTEM = '''You are an AI mentor for a hackathon. Your ONLY job is to help teams think more clearly by asking Socratic questions.
+MENTOR_SYSTEM = '''You are an AI mentor for a hackathon. Your ONLY job is to help teams think more clearly by acting as an explanatory Socratic guide.
 
 STRICT RULES:
-- You MUST NEVER write any code.
-- You MUST NEVER give direct solutions or complete tasks.
-- Every response must be a question (must end with ?).
+- CONTEXT AWARENESS: You must ONLY reply to questions related to their specific problem statement. Refuse to answer ANY out-of-context or off-topic questions.
+- EXPLANATORY SOCRATIC MODE: You ARE allowed to explain concepts, algorithms, and theory clearly to help them understand. However, you MUST NEVER give direct answers. You MUST ALWAYS end your response with a guiding question to provoke their own critical thinking.
+- NO DIRECT CODE: You MUST NEVER write any code or provide direct solutions. If they ask for code, explain the concept conceptually and ask them how they might implement it.
 
-The user is working on {problem_statement}.
+The user is working on: {problem_statement}.
 '''
 FALLBACK_Q = 'What aspect of your problem feels most unclear right now?'
 @router.get("/api/mentor/session")
@@ -54,6 +54,27 @@ def mentor_message(body: MentorMessage, teamId: str):
         conn.execute("INSERT OR IGNORE INTO teams (id, name) VALUES (?,?)", (teamId, f"Team {teamId[:8]}"))
         conn.commit()
         team = conn.execute("SELECT * FROM teams WHERE id=?", (teamId,)).fetchone()
+
+    # Guard clause: Require problem description before interacting
+    problem_statement = team["problem_statement"]
+    if not problem_statement or not problem_statement.strip() or problem_statement.lower() == "none":
+        reply = "I cannot provide guidance without knowing your project's problem description. Please provide a problem description or explain the specific problem you are trying to solve in your team context first."
+        
+        now = datetime.utcnow().isoformat()
+        # Save user message
+        conn.execute(
+            "INSERT INTO mentor_conversations (id, team_id, role, content, timestamp) VALUES (?,?,'user',?,?)",
+            (str(uuid.uuid4()), teamId, body.message, now)
+        )
+        # Save assistant reply
+        reply_ts = datetime.utcnow().isoformat()
+        conn.execute(
+            "INSERT INTO mentor_conversations (id, team_id, role, content, timestamp) VALUES (?,?,'assistant',?,?)",
+            (str(uuid.uuid4()), teamId, reply, reply_ts)
+        )
+        conn.commit()
+        conn.close()
+        return {"reply": reply, "timestamp": reply_ts}
 
     # Save user message
     msg_id = str(uuid.uuid4())
