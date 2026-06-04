@@ -4,7 +4,7 @@ import prisma from '../config/prisma.js';
 import { sendEmailOTP, verifyOTP } from '../services/otpService.js';
 
 const router = express.Router();
-const JWT_SECRET = process.env.JWT_SECRET || 'secret';
+const getJwtSecret = () => process.env.JWT_SECRET || 'secret';
 
 // POST /api/otp/send
 router.post('/send', async (req, res) => {
@@ -17,7 +17,7 @@ router.post('/send', async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, getJwtSecret());
     } catch (err) {
       return res.status(401).json({ success: false, detail: 'Invalid or expired magic link' });
     }
@@ -63,7 +63,7 @@ router.post('/verify', async (req, res) => {
 
     let decoded;
     try {
-      decoded = jwt.verify(token, JWT_SECRET);
+      decoded = jwt.verify(token, getJwtSecret());
     } catch (err) {
       return res.status(401).json({ success: false, detail: 'Invalid or expired magic link' });
     }

@@ -73,11 +73,15 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
       });
       
       await emailQueue.add('send_email', {
-        type: 'magic_link',
+        emailType: 'magic_link',
         recipientId: participant.id,
-        email: participant.email,
-        name: participant.name,
-        link: portalLink,
+        recipientEmail: participant.email,
+        recipientName: participant.name,
+        templateData: {
+          judgeName: participant.name,
+          magicLink: portalLink,
+          expiryHours: 720
+        },
         logId: emailLog.id
       }, { jobId: `magic_link_participant_${participant.id}_${Date.now()}` });
 

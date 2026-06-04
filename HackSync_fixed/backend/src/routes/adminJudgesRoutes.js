@@ -5,10 +5,8 @@ import prisma from '../config/prisma.js';
 
 const router = express.Router();
 
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('[FATAL] JWT_SECRET not set. Judge magic links will be broken.');
-}
+// Get JWT secret inside functions to ensure dotenv is loaded
+const getJwtSecret = () => process.env.JWT_SECRET || 'secret';
 
 // GET /api/admin/judges?eventId=xxx
 router.get('/judges', async (req, res) => {
@@ -111,7 +109,7 @@ router.post('/send-judge-links', async (req, res) => {
 
       const token = jwt.sign(
         { judgeId: judge.id, eventId },
-        JWT_SECRET,
+        getJwtSecret(),
         { expiresIn: '48h' }
       );
 
@@ -120,7 +118,7 @@ router.post('/send-judge-links', async (req, res) => {
         data: { jwtToken: token, tokenUsed: false },
       });
 
-      const magicLink = `${frontendUrl}/?judge=${judge.id}`;
+      const magicLink = `${frontendUrl}/?token=${token}`;
       const jobId = `magic_link_${judge.id}_${Date.now()}`;
 
       try {
@@ -161,7 +159,9 @@ router.post('/send-judge-links', async (req, res) => {
 // POST /api/admin/send-participant-emails
 router.post('/send-participant-emails', async (req, res) => {
   try {
-    const { emailType = 'welcome' } = req.body;
+    const { emailType = 'welcome', eventId } = req.body;
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
+    
     const teams = await prisma.team.findMany({
       where: { status: 'PUBLISHED', eventId },
       include: { members: true },
@@ -180,7 +180,7 @@ router.post('/send-participant-emails', async (req, res) => {
         if (!member?.email) continue;
         
         // Find corresponding participant to get ID
-        const participant = await prisma.participant.findUnique({ where: { email: member.email } });
+        const participant = await prisma.participant.findUnique({ where: { eventId_email: { eventId, email: member.email } } });
         if (!participant) continue;
 
 
