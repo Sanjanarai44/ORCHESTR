@@ -1,9 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { judgeApi } from '../api';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
-export default function JudgeVerify({ onSuccess, token }) {
+export default function ParticipantVerify({ onSuccess, token }) {
   const [state, setstate] = useState('loading'); // 'loading' | 'otp' | 'success' | 'error'
   const [errorType, setErrorType] = useState(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -28,7 +27,7 @@ export default function JudgeVerify({ onSuccess, token }) {
         const res = await fetch(`${NODE}/api/otp/send`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ token, role: 'judge' })
+          body: JSON.stringify({ token, role: 'participant' })
         });
         const data = await res.json();
         
@@ -36,7 +35,6 @@ export default function JudgeVerify({ onSuccess, token }) {
           setMaskedEmail(data.maskedEmail);
           setstate('otp');
         } else {
-          // If it fails, maybe token is invalid or no email is set.
           throw new Error(data.detail || 'Failed to send OTP');
         }
       } catch (err) {
@@ -64,14 +62,14 @@ export default function JudgeVerify({ onSuccess, token }) {
       const res = await fetch(`${NODE}/api/otp/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, role: 'judge', code: otpCode.trim() })
+        body: JSON.stringify({ token, role: 'participant', code: otpCode.trim() })
       });
       const data = await res.json();
       
       if (data.success) {
         setstate('success');
         setTimeout(() => {
-          if (onSuccess) onSuccess(data.userName);
+          if (onSuccess) onSuccess(data); // pass back user details
         }, 1200);
       } else {
         setErrorMessage(data.detail || 'Invalid OTP code.');
@@ -84,15 +82,15 @@ export default function JudgeVerify({ onSuccess, token }) {
   };
 
   const Wrapper = ({ children }) => (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-[#eafdff] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center gap-2 bg-stone-900 text-white px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
-            <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-            AlgoRythm EventFlow
+          <div className="inline-flex items-center gap-2 bg-[#012d1d] text-white px-4 py-1.5 rounded-full text-sm font-semibold mb-6">
+            <span className="w-2 h-2 bg-[#c1ecd4] rounded-full animate-pulse" />
+            HackSync Participant Portal
           </div>
         </div>
-        <div className="bg-white rounded-2xl shadow-sm border border-stone-200 overflow-hidden">
+        <div className="bg-white rounded-2xl shadow-xl border border-[#c1c8c2]/30 overflow-hidden">
           {children}
         </div>
       </div>
@@ -104,12 +102,12 @@ export default function JudgeVerify({ onSuccess, token }) {
       <Wrapper>
         <div className="p-12 text-center space-y-6">
           <div className="relative mx-auto w-16 h-16">
-            <div className="absolute inset-0 border-4 border-stone-200 rounded-full" />
-            <div className="absolute inset-0 border-4 border-stone-900 border-t-transparent rounded-full animate-spin" />
+            <div className="absolute inset-0 border-4 border-[#eafdff] rounded-full" />
+            <div className="absolute inset-0 border-4 border-[#012d1d] border-t-transparent rounded-full animate-spin" />
           </div>
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Verifying link & sending OTP…</h2>
-            <p className="text-sm text-stone-500 mt-1">Please wait while we validate your access token.</p>
+            <h2 className="text-xl font-bold text-[#012d1d]">Verifying link & sending OTP…</h2>
+            <p className="text-sm text-[#414844] mt-1">Please wait while we validate your access token.</p>
           </div>
         </div>
       </Wrapper>
@@ -120,12 +118,12 @@ export default function JudgeVerify({ onSuccess, token }) {
     return (
       <Wrapper>
         <div className="p-12 text-center space-y-6">
-          <div className="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-blue-600 text-4xl">mail</span>
+          <div className="w-16 h-16 bg-[#eafdff] rounded-full flex items-center justify-center mx-auto">
+            <span className="material-symbols-outlined text-[#012d1d] text-4xl">mail</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Two-Step Verification</h2>
-            <p className="text-sm text-stone-500 mt-1">We sent a 6-digit code to your email {maskedEmail}.</p>
+            <h2 className="text-xl font-bold text-[#012d1d]">Two-Step Verification</h2>
+            <p className="text-sm text-[#414844] mt-1">We sent a 6-digit code to your email {maskedEmail}.</p>
           </div>
           
           <div className="space-y-4">
@@ -134,14 +132,14 @@ export default function JudgeVerify({ onSuccess, token }) {
               placeholder="Enter 6-digit code" 
               value={otpCode}
               onChange={e => setOtpCode(e.target.value)}
-              className="w-full text-center tracking-widest text-lg font-mono py-3 border border-stone-200 rounded-xl focus:outline-none focus:border-stone-900"
+              className="w-full text-center tracking-widest text-lg font-mono py-3 border border-[#c1c8c2] rounded-xl focus:outline-none focus:border-[#012d1d]"
             />
             {errorMessage && <p className="text-xs text-red-600">{errorMessage}</p>}
             
             <button 
               onClick={handleVerifyOtp}
               disabled={!otpCode || verifyingOtp}
-              className="w-full bg-stone-900 hover:bg-stone-800 disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
+              className="w-full bg-[#012d1d] hover:bg-[#023d29] disabled:opacity-50 text-white font-bold py-3 rounded-xl transition-all"
             >
               {verifyingOtp ? 'Verifying...' : 'Verify & Sign In'}
             </button>
@@ -155,15 +153,15 @@ export default function JudgeVerify({ onSuccess, token }) {
     return (
       <Wrapper>
         <div className="p-12 text-center space-y-6">
-          <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto">
-            <span className="material-symbols-outlined text-emerald-600 text-4xl">check_circle</span>
+          <div className="w-16 h-16 bg-[#c1ecd4] rounded-full flex items-center justify-center mx-auto">
+            <span className="material-symbols-outlined text-[#012d1d] text-4xl">check_circle</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Access granted!</h2>
-            <p className="text-sm text-stone-500 mt-1">Redirecting to the judge portal…</p>
+            <h2 className="text-xl font-bold text-[#012d1d]">Access granted!</h2>
+            <p className="text-sm text-[#414844] mt-1">Redirecting to your dashboard…</p>
           </div>
           <div className="w-full h-1 bg-stone-100 rounded-full overflow-hidden">
-            <div className="h-full bg-emerald-500 rounded-full animate-[grow_1.2s_ease-in-out_forwards]" />
+            <div className="h-full bg-[#012d1d] rounded-full animate-[grow_1.2s_ease-in-out_forwards]" />
           </div>
         </div>
       </Wrapper>
@@ -203,16 +201,12 @@ export default function JudgeVerify({ onSuccess, token }) {
           <span className={`material-symbols-outlined ${cfg.iconColor} text-4xl`}>{cfg.icon}</span>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-stone-900">{cfg.title}</h2>
-          <p className="text-sm text-stone-500 mt-2 leading-relaxed">{errorMessage}</p>
+          <h2 className="text-xl font-bold text-[#012d1d]">{cfg.title}</h2>
+          <p className="text-sm text-[#414844] mt-2 leading-relaxed">{errorMessage}</p>
         </div>
-        <div className="bg-stone-50 rounded-xl p-4 text-left">
-          <p className="text-xs text-stone-600 leading-relaxed">{cfg.helpText}</p>
+        <div className="bg-[#eafdff] rounded-xl p-4 text-left">
+          <p className="text-xs text-[#414844] leading-relaxed">{cfg.helpText}</p>
         </div>
-        <a href="mailto:organizer@algorythm.com" className="inline-flex items-center gap-2 text-sm font-semibold text-stone-900 hover:underline">
-          <span className="material-symbols-outlined text-[18px]">mail</span>
-          Contact organizer
-        </a>
       </div>
     </Wrapper>
   );

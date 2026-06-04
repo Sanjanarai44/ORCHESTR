@@ -2,7 +2,9 @@ import express from "express";
 import multer from "multer";
 import fs from "fs";
 import csv from "csv-parser";
+import jwt from "jsonwebtoken";
 import prisma from "../config/prisma.js";
+import { emailQueue } from "../queues/emailQueue.js";
 
 const router = express.Router();
 
@@ -55,6 +57,30 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
           skill,
         },
       });
+      
+      // Generate magic link and queue email
+      const token = jwt.sign({ participantId: participant.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
+      const portalLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
+      
+      const emailLog = await prisma.emailLog.create({
+        data: {
+          recipientId: participant.id,
+          recipientEmail: participant.email,
+          recipientName: participant.name,
+          emailType: 'magic_link',
+          status: 'PENDING'
+        }
+      });
+      
+      await emailQueue.add('send_email', {
+        type: 'magic_link',
+        recipientId: participant.id,
+        email: participant.email,
+        name: participant.name,
+        link: portalLink,
+        logId: emailLog.id
+      }, { jobId: `magic_link_participant_${participant.id}_${Date.now()}` });
+
       count++;
     }
 

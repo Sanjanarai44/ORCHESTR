@@ -17,6 +17,9 @@ function App() {
   const [judgeToken, setJudgeToken] = useState(null);
   const [judgeName, setJudgeName] = useState('');
   const [judgeTeamId, setJudgeTeamId] = useState(null);
+  
+  const [participantToken, setParticipantToken] = useState(null);
+  const [participant, setParticipant] = useState(null);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -147,6 +150,11 @@ function App() {
     setView('judge-dashboard');
   };
 
+  const handleParticipantVerified = (userData) => {
+    setParticipant({ id: userData.userId, name: userData.userName });
+    setView('participant-dashboard');
+  };
+
   const eventConfig = currentEvent?.config || null;
   const eventId = currentEvent?.id || null;
 
@@ -240,11 +248,30 @@ function App() {
         />
       );
 
+    case 'participant-verify':
+      return (
+        <ParticipantVerify 
+          token={participantToken || localStorage.getItem('participant_token')}
+          onSuccess={handleParticipantVerified}
+        />
+      );
+
+    case 'participant-dashboard':
+      return (
+        <ParticipantDashboard
+          eventConfig={eventConfig}
+          eventId={eventId}
+          authenticatedParticipant={participant}
+          onBack={() => setView('landing')}
+        />
+      );
+
     case 'participant':
       return (
         <ParticipantDashboard
           eventConfig={eventConfig}
           eventId={eventId}
+          authenticatedParticipant={null}
           onBack={() => setView('landing')}
         />
       );

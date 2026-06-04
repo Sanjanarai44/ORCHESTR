@@ -8,6 +8,7 @@
  *   reminder        — Evaluation reminder to judges
  *   results         — Final results notification to participants
  *   anomaly_alert   — Alert to committee when anomaly is detected
+ *   otp             — Two-step verification code
  *
  * Run with: node src/workers/emailWorker.js  OR  npm run worker
  */
@@ -144,6 +145,29 @@ function buildAnomalyAlertEmail(data) {
   };
 }
 
+function buildOtpEmail(data) {
+  const { code, name = 'there' } = data;
+  return {
+    subject: `Your verification code: ${code}`,
+    html: `
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+        <div style="background: #0c0c0c; padding: 32px 40px;">
+          <h1 style="color: #fff; font-size: 20px; margin: 0; font-weight: 700;">AlgoRythm EventFlow</h1>
+        </div>
+        <div style="padding: 40px;">
+          <p style="font-size: 16px; color: #111827;">Hi <strong>${name}</strong>,</p>
+          <p style="font-size: 14px; color: #374151; line-height: 1.6;">Your 6-digit verification code is:</p>
+          <div style="background: #f3f4f6; border-radius: 8px; padding: 20px; text-align: center; margin: 24px 0;">
+            <span style="font-size: 32px; font-weight: 700; letter-spacing: 6px; color: #111827;">${code}</span>
+          </div>
+          <p style="font-size: 12px; color: #9ca3af; margin: 24px 0 0; padding-top: 24px; border-top: 1px solid #f3f4f6;">
+            This code will expire in 5 minutes. If you didn't request this, you can safely ignore this email.
+          </p>
+        </div>
+      </div>`,
+  };
+}
+
 // ── Template dispatcher ───────────────────────────────────────────────────────
 function buildEmail(emailType, templateData) {
   switch (emailType) {
@@ -157,6 +181,8 @@ function buildEmail(emailType, templateData) {
       return buildResultsEmail(templateData);
     case 'anomaly_alert':
       return buildAnomalyAlertEmail(templateData);
+    case 'otp':
+      return buildOtpEmail(templateData);
     default:
       return {
         subject: 'AlgoRythm EventFlow Notification',
@@ -210,7 +236,6 @@ const emailWorker = new Worker(
       });
     } else {
       console.log(`[EmailWorker] ⚠️ MOCK MODE: SendGrid API Key missing. Simulating successful send.`);
-      console.log(`[EmailWorker] Subject: ${subject}`);
       if (emailType === 'magic_link') {
         console.log(`[EmailWorker] Magic Link: ${templateData?.magicLink}`);
       }
