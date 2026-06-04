@@ -64,45 +64,48 @@ def register(data: dict):
     return {"success": True, "organizer": {"id": 1, "name": name, "email": email}}
 
 # ═══════════════════════════════════════════════
-# EVENTS (stored in localStorage on frontend)
+# EVENTS — stored in PostgreSQL via Node backend
 # ═══════════════════════════════════════════════
+import httpx
+
+NODE_URL = os.getenv("NODE_URL", "https://orchestr-backend-8u5k.onrender.com")
 
 @app.get("/events")
-def get_events(organizer_id: int = 1):
-    """Returns demo event - real events are stored in localStorage"""
-    return {"events": [{
-        "id": 1,
-        "name": "48-Hour Hackathon",
-        "event_type": "hackathon",
-        "status": "active",
-        "participant_count": 0,
-        "team_count": 0,
-        "created_at": "2025-06-01T00:00:00",
-        "config": {
-            "event_name": "48-Hour Hackathon",
-            "event_type": "hackathon",
-            "team_size": 3,
-            "stages": ["Registration", "Team Formation", "Hacking Phase", "Round 1 Eval", "Final Demo", "Winners"],
-            "num_judges": 5,
-            "scoring_criteria": ["innovation", "technical execution", "presentation"],
-            "advancement_rule": "top 5 teams advance to finals",
-            "communication_touchpoints": ["welcome email", "team assignment", "evaluation reminder", "results"]
-        }
-    }]}
+async def get_events(organizer_id: str = "1"):
+    """Fetch events from PostgreSQL via Node backend"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.get(f"{NODE_URL}/api/admin/events?organizer_id={organizer_id}")
+            data = res.json()
+            return data
+    except Exception as e:
+        print(f"Events fetch error: {e}")
+        return {"events": [], "success": False}
 
 @app.post("/events")
-def create_event(data: dict):
-    config = data.get("config", {})
-    name = config.get("event_name", "New Event")
-    return {"success": True, "event_id": 1, "name": name}
-
-@app.put("/events/{event_id}")
-def update_event(event_id: int, data: dict):
-    return {"success": True}
+async def create_event(data: dict):
+    """Create event in PostgreSQL via Node backend"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.post(
+                f"{NODE_URL}/api/admin/events",
+                json=data,
+                headers={"Content-Type": "application/json"},
+            )
+            return res.json()
+    except Exception as e:
+        print(f"Event create error: {e}")
+        return {"success": False, "error": str(e)}
 
 @app.delete("/events/{event_id}")
-def delete_event(event_id: int):
-    return {"success": True}
+async def delete_event(event_id: str):
+    """Delete event and all related data via Node backend"""
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            res = await client.delete(f"{NODE_URL}/api/admin/events/{event_id}")
+            return res.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 # ═══════════════════════════════════════════════
 # AI ENDPOINTS

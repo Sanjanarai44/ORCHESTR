@@ -1,6 +1,20 @@
 -- CreateTable
+CREATE TABLE "Event" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "eventType" TEXT NOT NULL DEFAULT 'hackathon',
+    "status" TEXT NOT NULL DEFAULT 'active',
+    "config" TEXT NOT NULL,
+    "organizerId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Participant" (
     "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "college" TEXT NOT NULL,
@@ -14,8 +28,9 @@ CREATE TABLE "Participant" (
 -- CreateTable
 CREATE TABLE "Team" (
     "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "status" TEXT NOT NULL DEFAULT 'active',
+    "status" TEXT NOT NULL DEFAULT 'DRAFT',
     "aiRationale" TEXT,
     "problemStatement" TEXT,
     "evaluationGuide" TEXT,
@@ -40,6 +55,7 @@ CREATE TABLE "TeamMember" (
 -- CreateTable
 CREATE TABLE "Judge" (
     "id" TEXT NOT NULL,
+    "eventId" TEXT NOT NULL,
     "email" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "jwtToken" TEXT,
@@ -133,16 +149,25 @@ CREATE TABLE "AiEmailContent" (
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Participant_email_key" ON "Participant"("email");
+CREATE UNIQUE INDEX "Participant_eventId_email_key" ON "Participant"("eventId", "email");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Judge_email_key" ON "Judge"("email");
+CREATE UNIQUE INDEX "Judge_eventId_email_key" ON "Judge"("eventId", "email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Evaluation_judgeId_teamId_key" ON "Evaluation"("judgeId", "teamId");
 
 -- AddForeignKey
+ALTER TABLE "Participant" ADD CONSTRAINT "Participant_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Team" ADD CONSTRAINT "Team_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "TeamMember" ADD CONSTRAINT "TeamMember_teamId_fkey" FOREIGN KEY ("teamId") REFERENCES "Team"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Judge" ADD CONSTRAINT "Judge_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Evaluation" ADD CONSTRAINT "Evaluation_judgeId_fkey" FOREIGN KEY ("judgeId") REFERENCES "Judge"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

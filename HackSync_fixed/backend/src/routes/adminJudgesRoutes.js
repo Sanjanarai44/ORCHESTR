@@ -10,17 +10,34 @@ if (!JWT_SECRET) {
   console.error('[FATAL] JWT_SECRET not set. Judge magic links will be broken.');
 }
 
-// GET /api/admin/judges
+// GET /api/admin/judges?eventId=xxx
 router.get('/judges', async (req, res) => {
   try {
-    const judges = await prisma.judge.findMany({ orderBy: { createdAt: 'desc' } });
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
+    const judges = await prisma.judge.findMany({
+      where: { eventId },
+      orderBy: { createdAt: 'desc' },
+    });
     return res.json({ success: true, judges });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to fetch judges' });
   }
 });
 
-
+// POST /api/admin/judges
+router.post('/judges', async (req, res) => {
+  try {
+    const { name, email, eventId } = req.body;
+    if (!name || !email) return res.status(400).json({ success: false, message: 'name and email required' });
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
+    const judge = await prisma.judge.create({ data: { name, email, eventId } });
+    return res.json({ success: true, judge });
+  } catch (error) {
+    if (error?.code === 'P2002') return res.status(409).json({ success: false, message: 'Email already exists for this event' });
+    return res.status(500).json({ success: false, message: 'Failed to add judge' });
+  }
+});
 
 // DELETE /api/admin/judges/:id
 router.delete('/judges/:id', async (req, res) => {
@@ -35,16 +52,19 @@ router.delete('/judges/:id', async (req, res) => {
 // POST /api/admin/assign-judges
 router.post('/assign-judges', async (req, res) => {
   try {
-    const judges = await prisma.judge.findMany();
-    const teams = await prisma.team.findMany({ where: { status: 'PUBLISHED' } });
+    const eventId = req.body?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
 
-    if (judges.length === 0) return res.status(404).json({ success: false, message: 'No judges found' });
+    const judges = await prisma.judge.findMany({ where: { eventId } });
+    const teams = await prisma.team.findMany({ where: { status: 'PUBLISHED', eventId } });
+
+    if (judges.length === 0) return res.status(404).json({ success: false, message: 'No judges found for this event' });
     if (teams.length === 0) return res.status(404).json({ success: false, message: 'No published teams found. Approve and publish teams first.' });
 
-    // New Assignment Logic: 3 judges per team, round-robin
+    // 3 judges per team, round-robin — logic unchanged
     const assignments = {};
     judges.forEach(j => (assignments[j.id] = []));
-    
+
     let judgeIdx = 0;
     const targetJudgesPerTeam = Math.min(3, judges.length);
 
@@ -63,11 +83,11 @@ router.post('/assign-judges', async (req, res) => {
       });
     }
 
-    return res.json({ 
-      success: true, 
-      message: `Teams assigned (${targetJudgesPerTeam} per team) to ${judges.length} judges`, 
-      judgeCount: judges.length, 
-      teamCount: teams.length 
+    return res.json({
+      success: true,
+      message: `Teams assigned (${targetJudgesPerTeam} per team) to ${judges.length} judges`,
+      judgeCount: judges.length,
+      teamCount: teams.length,
     });
   } catch (error) {
     return res.status(500).json({ success: false, message: 'Failed to assign teams' });
@@ -77,15 +97,18 @@ router.post('/assign-judges', async (req, res) => {
 // POST /api/admin/send-judge-links
 router.post('/send-judge-links', async (req, res) => {
   try {
-    const judges = await prisma.judge.findMany();
-    if (judges.length === 0) return res.status(404).json({ success: false, message: 'No judges found' });
+    const eventId = req.body?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
+
+    const judges = await prisma.judge.findMany({ where: { eventId } });
+    if (judges.length === 0) return res.status(404).json({ success: false, message: 'No judges found for this event' });
 
     const frontendUrl = (process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
     let sentCount = 0;
 
     for (const judge of judges) {
       const token = jwt.sign(
-        { judgeId: judge.id, eventId: 'event_1' },
+        { judgeId: judge.id, eventId },
         JWT_SECRET,
         { expiresIn: '48h' }
       );
@@ -95,7 +118,7 @@ router.post('/send-judge-links', async (req, res) => {
         data: { jwtToken: token, tokenUsed: false },
       });
 
-      const magicLink = `${frontendUrl}/?token=${token}`;
+      const magicLink = `${frontendUrl}/?judge=${judge.id}`;
       const jobId = `magic_link_${judge.id}_${Date.now()}`;
 
       try {
@@ -136,15 +159,16 @@ router.post('/send-judge-links', async (req, res) => {
 // POST /api/admin/send-participant-emails
 router.post('/send-participant-emails', async (req, res) => {
   try {
-    const { emailType = 'welcome' } = req.body;
-    // FIXED: members: true — no participant relation in TeamMember
+    const { emailType = 'welcome', eventId } = req.body;
+    if (!eventId) return res.status(400).json({ success: false, message: 'eventId is required' });
+
     const teams = await prisma.team.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', eventId },
       include: { members: true },
     });
 
     if (teams.length === 0) {
-      return res.status(400).json({ success: false, message: 'No published teams found.' });
+      return res.status(400).json({ success: false, message: 'No published teams found for this event.' });
     }
 
     let sentCount = 0;

@@ -12,10 +12,7 @@ async function nodeRequest(path, options = {}) {
   if (options.body instanceof FormData) {
     delete headers['Content-Type'];
   }
-  const res = await fetch(`${NODE}${path}`, {
-    ...options,
-    headers,
-  });
+  const res = await fetch(`${NODE}${path}`, { ...options, headers });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
     throw new Error(err.message || err.detail || `API error ${res.status}`);
@@ -41,57 +38,53 @@ export const authApi = {
   register: (data) => aiRequest('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
 };
 
-// ─── Events (Python) ──────────────────────────────────────────────────────────
+// ─── Events — stored in PostgreSQL via Node ───────────────────────────────────
 export const eventsApi = {
   getAll: (organizerId) => aiRequest(`/events?organizer_id=${organizerId}`),
   create: (data) => aiRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
-  update: (id, data) => aiRequest(`/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => aiRequest(`/events/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Participants (Node → PostgreSQL) ─────────────────────────────────────────
 export const participantsApi = {
-  getAll: () => nodeRequest('/api/admin/participants'),
+  getAll: (eventId) => nodeRequest(`/api/admin/participants?eventId=${eventId}`),
   getById: (id) => nodeRequest(`/api/admin/participants/${id}`),
-  // FIXED: correct path
-  getByEmail: (email) => nodeRequest(`/api/admin/participants/by-email/${encodeURIComponent(email)}`),
+  getByEmail: (email, eventId) => nodeRequest(
+    `/api/admin/participants/by-email/${encodeURIComponent(email)}${eventId ? `?eventId=${eventId}` : ''}`
+  ),
   add: (data) => nodeRequest('/api/admin/participants', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => nodeRequest(`/api/admin/participants/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Teams (Node → PostgreSQL) ────────────────────────────────────────────────
 export const adminTeamsApi = {
-  getAll: (status = '') => nodeRequest(`/api/admin/teams${status ? `?status=${encodeURIComponent(status)}` : ''}`),
-  getDraft: () => nodeRequest('/api/admin/teams?status=DRAFT'),
-  getPublished: () => nodeRequest('/api/admin/teams?status=PUBLISHED'),
- generate: (opts = {}) => nodeRequest('/api/admin/generate-teams', {
-  method: 'POST', body: JSON.stringify(opts),
-}),
-saveRules: (rules) => nodeRequest('/api/admin/team-rules', {
-  method: 'POST', body: JSON.stringify(rules),
-}),
-getRules: () => nodeRequest('/api/admin/team-rules'),
-  approveAndPublish: () => nodeRequest('/api/admin/approve-publish-teams', {
-    method: 'POST', body: JSON.stringify({}),
+  getAll: (eventId, status = '') => nodeRequest(
+    `/api/admin/teams?eventId=${eventId}${status ? `&status=${encodeURIComponent(status)}` : ''}`
+  ),
+  getDraft: (eventId) => nodeRequest(`/api/admin/teams?eventId=${eventId}&status=DRAFT`),
+  getPublished: (eventId) => nodeRequest(`/api/admin/teams?eventId=${eventId}&status=PUBLISHED`),
+  generate: (eventId, opts = {}) => nodeRequest('/api/admin/generate-teams', {
+    method: 'POST', body: JSON.stringify({ eventId, ...opts }),
+  }),
+  approveAndPublish: (eventId) => nodeRequest('/api/admin/approve-publish-teams', {
+    method: 'POST', body: JSON.stringify({ eventId }),
   }),
 };
 
-// Alias used by participant dashboard
+// ─── Teams alias (participant dashboard) ──────────────────────────────────────
 export const teamsApi = {
-  // FIXED: returns all teams regardless of status
-  getAll: () => nodeRequest('/api/admin/teams'),
-  getPublished: () => nodeRequest('/api/admin/teams?status=PUBLISHED'),
-  getPendingCount: () => nodeRequest('/api/admin/teams?status=DRAFT').then(r => ({ pending: (r.teams || []).length })),
+  getAll: (eventId) => nodeRequest(`/api/admin/teams?eventId=${eventId}`),
+  getPublished: (eventId) => nodeRequest(`/api/admin/teams?eventId=${eventId}&status=PUBLISHED`),
 };
 
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 export const leaderboardApi = {
-  get: () => nodeRequest('/api/admin/leaderboard'),
+  get: (eventId) => nodeRequest(`/api/admin/leaderboard?eventId=${eventId}`),
 };
 
 // ─── Approvals ────────────────────────────────────────────────────────────────
 export const approvalsApi = {
-  getPending: () => nodeRequest('/api/admin/pending-approvals'),
+  getPending: (eventId) => nodeRequest(`/api/admin/pending-approvals?eventId=${eventId}`),
 };
 
 // ─── Scores (Node → PostgreSQL) ───────────────────────────────────────────────
@@ -106,15 +99,21 @@ export const scoresApi = {
 
 // ─── Judges (Node → PostgreSQL) ───────────────────────────────────────────────
 export const judgesApi = {
-  getAll: () => nodeRequest('/api/admin/judges'),
+  getAll: (eventId) => nodeRequest(`/api/admin/judges?eventId=${eventId}`),
   add: (data) => nodeRequest('/api/admin/judges', { method: 'POST', body: JSON.stringify(data) }),
   delete: (id) => nodeRequest(`/api/admin/judges/${id}`, { method: 'DELETE' }),
-  sendLinks: () => nodeRequest('/api/admin/send-judge-links', { method: 'POST' }),
-  assignTeams: () => nodeRequest('/api/admin/assign-judges', { method: 'POST' }),
-  sendParticipantEmails: (emailType) => nodeRequest('/api/admin/send-participant-emails', {
-    method: 'POST', body: JSON.stringify({ emailType }),
+  sendLinks: (eventId) => nodeRequest('/api/admin/send-judge-links', {
+    method: 'POST', body: JSON.stringify({ eventId }),
   }),
-  uploadCSV: (formData) => nodeRequest('/api/admin/upload-judges', { method: 'POST', body: formData }),
+  assignTeams: (eventId) => nodeRequest('/api/admin/assign-judges', {
+    method: 'POST', body: JSON.stringify({ eventId }),
+  }),
+  sendParticipantEmails: (eventId, emailType) => nodeRequest('/api/admin/send-participant-emails', {
+    method: 'POST', body: JSON.stringify({ eventId, emailType }),
+  }),
+  uploadCSV: (formData) => nodeRequest('/api/admin/upload-judges', {
+    method: 'POST', body: formData,
+  }),
 };
 
 // ─── Judge Portal (Node → PostgreSQL) ─────────────────────────────────────────
@@ -133,16 +132,16 @@ export const judgeApi = {
   }),
 };
 
-// ─── Activity Log (Node → PostgreSQL) ─────────────────────────────────────────
+// ─── Activity Log ─────────────────────────────────────────────────────────────
 export const activityApi = {
-  getLog: () => nodeRequest('/api/admin/activity-log'),
+  getLog: (eventId) => nodeRequest(`/api/admin/activity-log${eventId ? `?eventId=${eventId}` : ''}`),
 };
 
-// ─── Stage Management (Node → PostgreSQL) ─────────────────────────────────────
+// ─── Stage Management ─────────────────────────────────────────────────────────
 export const stageApi = {
-  getStages: () => nodeRequest('/api/admin/stages'),
-  advanceStage: (fromStage, toStage) => nodeRequest('/api/admin/advance-stage', {
-    method: 'POST', body: JSON.stringify({ from_stage: fromStage, to_stage: toStage }),
+  getStages: (eventId) => nodeRequest(`/api/admin/stages${eventId ? `?eventId=${eventId}` : ''}`),
+  advanceStage: (fromStage, toStage, eventId) => nodeRequest('/api/admin/advance-stage', {
+    method: 'POST', body: JSON.stringify({ from_stage: fromStage, to_stage: toStage, eventId }),
   }),
 };
 

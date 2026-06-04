@@ -11,7 +11,7 @@ function normalizeSkill(skill) {
   if (["frontend","fe","front-end","ui","dev","developer","fullstack","react","vue"].includes(v) || v.includes("front") || v === "dev") return "Frontend";
   if (["backend","be","back-end","api","pm","system design"].includes(v) || v.includes("back") || v === "pm") return "Backend";
   if (["designer","design","ui/ux","ux","figma","graphic"].includes(v) || v.includes("design") || v.includes("ux")) return "Designer";
-  return skill || "Frontend"; // keep original, don't block
+  return skill || "Frontend";
 }
 
 const upload = multer({ dest: "uploads/" });
@@ -20,6 +20,12 @@ const upload = multer({ dest: "uploads/" });
 router.post("/upload-roster", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+
+    const eventId = req.body?.eventId || req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
+    const event = await prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) return res.status(404).json({ success: false, message: "Event not found" });
 
     const results = [];
     await new Promise((resolve, reject) => {
@@ -35,9 +41,19 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
       if (!row.email) continue;
       const skill = normalizeSkill(row.skill || row.role || "Frontend");
       await prisma.participant.upsert({
-        where: { email: row.email.trim() },
-        update: { name: row.name?.trim(), college: (row.college || row.institution || "").trim(), skill },
-        create: { name: row.name?.trim() || "", email: row.email.trim(), college: (row.college || row.institution || "").trim(), skill },
+        where: { eventId_email: { eventId, email: row.email.trim() } },
+        update: {
+          name: row.name?.trim(),
+          college: (row.college || row.institution || "").trim(),
+          skill,
+        },
+        create: {
+          eventId,
+          name: row.name?.trim() || "",
+          email: row.email.trim(),
+          college: (row.college || row.institution || "").trim(),
+          skill,
+        },
       });
       count++;
     }
@@ -50,51 +66,47 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
   }
 });
 
-// GET /api/admin/participants
+// GET /api/admin/participants?eventId=xxx
 router.get("/participants", async (req, res) => {
   try {
-    // Try with TeamMember relation first, fall back to simple query
-    let participants;
-    try {
-      participants = await prisma.participant.findMany({
-        include: { teamEntry: { include: { team: true } } },
-        orderBy: { name: "asc" },
-      });
-      return res.json({
-        success: true,
-        data: participants.map(p => ({
-          id: p.id, name: p.name, email: p.email,
-          college: p.college, skill: p.skill, stage: p.stage,
-          createdAt: p.createdAt,
-          teamName: p.teamEntry?.team?.name || null,
-          teamStatus: p.teamEntry?.team?.status || null,
-        })),
-      });
-    } catch {
-      // TeamMember relation not available yet — return without team info
-      participants = await prisma.participant.findMany({ orderBy: { name: "asc" } });
-      return res.json({
-        success: true,
-        data: participants.map(p => ({
-          id: p.id, name: p.name, email: p.email,
-          college: p.college, skill: p.skill, stage: p.stage || "roster",
-          createdAt: p.createdAt, teamName: null, teamStatus: null,
-        })),
-      });
-    }
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
+    const participants = await prisma.participant.findMany({
+      where: { eventId },
+      orderBy: { name: "asc" },
+    });
+
+    return res.json({
+      success: true,
+      data: participants.map(p => ({
+        id: p.id, name: p.name, email: p.email,
+        college: p.college, skill: p.skill,
+        stage: p.stage || "roster",
+        createdAt: p.createdAt,
+        teamName: null, teamStatus: null,
+      })),
+      participants: participants.map(p => ({
+        id: p.id, name: p.name, email: p.email,
+        college: p.college, skill: p.skill,
+        stage: p.stage || "roster",
+        createdAt: p.createdAt,
+      })),
+    });
   } catch (error) {
-    console.error("Database fetch error:", error);
-    return res.status(500).json({ success: false, message: "Failed to retrieve directory records", error: error.message });
+    return res.status(500).json({ success: false, message: "Failed to fetch participants", error: error.message });
   }
 });
 
-// GET /api/admin/participants/by-email/:email
+// GET /api/admin/participants/by-email/:email?eventId=xxx
 router.get("/participants/by-email/:email", async (req, res) => {
   try {
     const email = decodeURIComponent(req.params.email).trim().toLowerCase();
-    const participant = await prisma.participant.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-    });
+    const eventId = req.query?.eventId;
+    const where = eventId
+      ? { eventId, email: { equals: email, mode: "insensitive" } }
+      : { email: { equals: email, mode: "insensitive" } };
+    const participant = await prisma.participant.findFirst({ where });
     if (!participant) return res.json({ found: false, error: "Participant not found" });
     return res.json({ found: true, participant: { ...participant, stage: participant.stage || "roster" } });
   } catch (error) {
@@ -107,7 +119,12 @@ router.get("/participants/:id", async (req, res) => {
   try {
     const participant = await prisma.participant.findUnique({ where: { id: req.params.id } });
     if (!participant) return res.status(404).json({ success: false, message: "Not found" });
-    return res.json({ success: true, participant: { ...participant, stage: participant.stage || "roster" }, timeline: [], notifications: [] });
+    return res.json({
+      success: true,
+      participant: { ...participant, stage: participant.stage || "roster" },
+      timeline: [],
+      notifications: [],
+    });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
@@ -116,14 +133,21 @@ router.get("/participants/:id", async (req, res) => {
 // POST /api/admin/participants
 router.post("/participants", async (req, res) => {
   try {
-    const { name, email, skill, college, institution } = req.body;
+    const { name, email, skill, college, institution, eventId } = req.body;
     if (!name || !email) return res.status(400).json({ success: false, message: "name and email required" });
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
     const participant = await prisma.participant.create({
-      data: { name: name.trim(), email: email.trim(), skill: normalizeSkill(skill), college: (college || institution || "").trim() },
+      data: {
+        eventId,
+        name: name.trim(),
+        email: email.trim(),
+        skill: normalizeSkill(skill),
+        college: (college || institution || "").trim(),
+      },
     });
     return res.json({ success: true, message: "Participant added", data: participant });
   } catch (error) {
-    if (error?.code === "P2002") return res.status(409).json({ success: false, message: "Email already exists" });
+    if (error?.code === "P2002") return res.status(409).json({ success: false, message: "Email already exists for this event" });
     return res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -131,18 +155,19 @@ router.post("/participants", async (req, res) => {
 // DELETE /api/admin/participants/:id
 router.delete("/participants/:id", async (req, res) => {
   try {
-    // Delete TeamMember first if exists
-    try { await prisma.teamMember.deleteMany({ where: { participantId: req.params.id } }); } catch {}
     await prisma.participant.delete({ where: { id: req.params.id } });
     return res.json({ success: true, message: "Deleted" });
   } catch (error) {
     return res.status(500).json({ success: false, message: error.message });
   }
 });
+
 // POST /api/admin/upload-judges
 router.post("/upload-judges", upload.single("file"), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ success: false, message: "No file uploaded" });
+    const eventId = req.body?.eventId || req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
 
     const results = [];
     await new Promise((resolve, reject) => {
@@ -157,9 +182,9 @@ router.post("/upload-judges", upload.single("file"), async (req, res) => {
     for (const row of results) {
       if (!row.email) continue;
       await prisma.judge.upsert({
-        where: { email: row.email.trim() },
+        where: { eventId_email: { eventId, email: row.email.trim() } },
         update: { name: row.name?.trim() || "" },
-        create: { name: row.name?.trim() || "", email: row.email.trim() },
+        create: { eventId, name: row.name?.trim() || "", email: row.email.trim() },
       });
       count++;
     }
@@ -169,6 +194,75 @@ router.post("/upload-judges", upload.single("file"), async (req, res) => {
   } catch (error) {
     if (req.file && fs.existsSync(req.file.path)) try { fs.unlinkSync(req.file.path); } catch {}
     return res.status(500).json({ success: false, message: "Upload failed", error: error.message });
+  }
+});
+
+// GET /api/admin/events
+router.get("/events", async (req, res) => {
+  try {
+    const organizerId = req.query?.organizer_id || req.query?.organizerId || "1";
+    const events = await prisma.event.findMany({
+      where: { organizerId: String(organizerId) },
+      orderBy: { createdAt: "desc" },
+    });
+    return res.json({
+      success: true,
+      events: events.map(e => ({
+        id: e.id,
+        name: e.name,
+        event_type: e.eventType,
+        status: e.status,
+        config: typeof e.config === "string" ? JSON.parse(e.config) : e.config,
+        created_at: e.createdAt,
+        participant_count: 0,
+        team_count: 0,
+      })),
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/events
+router.post("/events", async (req, res) => {
+  try {
+    const { organizer_id, organizerId, config, name } = req.body;
+    const oid = String(organizer_id || organizerId || "1");
+    const cfg = config || {};
+    const event = await prisma.event.create({
+      data: {
+        organizerId: oid,
+        name: name || cfg.event_name || "New Event",
+        eventType: cfg.event_type || "general",
+        status: "active",
+        config: JSON.stringify(cfg),
+      },
+    });
+    return res.json({ success: true, event_id: event.id, id: event.id, name: event.name });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// DELETE /api/admin/events/:id
+router.delete("/events/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teams = await prisma.team.findMany({ where: { eventId: id }, select: { id: true } });
+    const teamIds = teams.map(t => t.id);
+    if (teamIds.length > 0) {
+      await prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } });
+      await prisma.evaluation.deleteMany({ where: { teamId: { in: teamIds } } });
+      await prisma.anomalyFlag.deleteMany({ where: { teamId: { in: teamIds } } });
+      await prisma.mentorConversation.deleteMany({ where: { teamId: { in: teamIds } } });
+      await prisma.team.deleteMany({ where: { eventId: id } });
+    }
+    await prisma.judge.deleteMany({ where: { eventId: id } });
+    await prisma.participant.deleteMany({ where: { eventId: id } });
+    await prisma.event.delete({ where: { id } });
+    return res.json({ success: true });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
   }
 });
 

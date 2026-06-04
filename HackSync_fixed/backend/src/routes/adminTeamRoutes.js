@@ -195,18 +195,21 @@ function buildTeams(participants, rules = {}) {
   };
 }
 
-async function fetchUnassignedParticipants() {
+async function fetchUnassignedParticipants(eventId) {
   let lockedEmails = [];
   try {
     const lockedMembers = await prisma.teamMember.findMany({
-      where: { team: { status: "PUBLISHED" } },
+      where: { team: { status: "PUBLISHED", eventId } },
       select: { email: true },
     });
     lockedEmails = lockedMembers.map(m => m.email).filter(Boolean);
   } catch { lockedEmails = []; }
 
   const participants = await prisma.participant.findMany({
-    where: lockedEmails.length > 0 ? { email: { notIn: lockedEmails } } : {},
+    where: {
+      eventId,
+      ...(lockedEmails.length > 0 ? { email: { notIn: lockedEmails } } : {}),
+    },
     orderBy: { name: "asc" },
   });
   return { participants, lockedCount: lockedEmails.length };
@@ -229,7 +232,13 @@ function mapTeamResponse(team) {
 router.get("/teams", async (req, res) => {
   try {
     const statusParam = String(req.query.status || "").trim().toUpperCase();
-    const whereClause = statusParam && statusParam !== "ALL" ? { status: statusParam } : undefined;
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
+    const whereClause = {
+      eventId,
+      ...(statusParam && statusParam !== "ALL" ? { status: statusParam } : {}),
+    };
     const teams = await prisma.team.findMany({
       where: whereClause,
       include: { members: true },
@@ -245,6 +254,9 @@ router.get("/teams", async (req, res) => {
 // POST /api/admin/generate-teams
 router.post("/generate-teams", async (req, res) => {
   try {
+    const eventId = req.body?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
     const teamSize = Number.isFinite(Number(req.body?.teamSize)) ? Math.max(2, Number(req.body.teamSize)) : 3;
     const retryLimit = Number.isFinite(Number(req.body?.retryLimit)) ? Math.max(1, Number(req.body.retryLimit)) : DEFAULT_RETRY_LIMIT;
 
@@ -257,7 +269,7 @@ router.post("/generate-teams", async (req, res) => {
       excludeTags: Array.isArray(req.body?.excludeTags) ? req.body.excludeTags : [],
     };
 
-    const { participants, lockedCount } = await fetchUnassignedParticipants();
+    const { participants, lockedCount } = await fetchUnassignedParticipants(eventId);
 
     if (!participants.length) {
       return res.status(400).json({
@@ -279,17 +291,25 @@ router.post("/generate-teams", async (req, res) => {
     }
 
     // Delete old drafts
-    const oldDrafts = await prisma.team.findMany({ where: { status: "DRAFT" }, select: { id: true } });
+    // Delete old drafts for THIS event only
+    const oldDrafts = await prisma.team.findMany({
+      where: { status: "DRAFT", eventId },
+      select: { id: true },
+    });
     if (oldDrafts.length > 0) {
       await prisma.teamMember.deleteMany({ where: { teamId: { in: oldDrafts.map(t => t.id) } } });
       await prisma.team.deleteMany({ where: { id: { in: oldDrafts.map(t => t.id) } } });
     }
 
-    // Create new draft teams
+    // Create new draft teams for THIS event
     for (let idx = 0; idx < generated.teams.length; idx++) {
       const teamMembers = generated.teams[idx];
       const team = await prisma.team.create({
-        data: { name: `Team ${String(idx + 1).padStart(2, "0")}`, status: "DRAFT" },
+        data: {
+          eventId,
+          name: `Team ${String(idx + 1).padStart(2, "0")}`,
+          status: "DRAFT",
+        },
       });
       for (const member of teamMembers) {
         await prisma.teamMember.create({
@@ -305,7 +325,7 @@ router.post("/generate-teams", async (req, res) => {
     }
 
     const persistedTeams = await prisma.team.findMany({
-      where: { status: "DRAFT" },
+      where: { status: "DRAFT", eventId },
       include: { members: true },
       orderBy: { createdAt: "asc" },
     });
@@ -330,12 +350,15 @@ router.post("/generate-teams", async (req, res) => {
 // POST /api/admin/approve-publish-teams
 router.post("/approve-publish-teams", async (req, res) => {
   try {
-    const draftTeams = await prisma.team.findMany({ where: { status: "DRAFT" } });
+    const eventId = req.body?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
+    const draftTeams = await prisma.team.findMany({ where: { status: "DRAFT", eventId } });
     if (draftTeams.length === 0) {
       return res.status(400).json({ success: false, message: "No draft teams to approve." });
     }
     const updated = await prisma.team.updateMany({
-      where: { status: "DRAFT" },
+      where: { status: "DRAFT", eventId },
       data: { status: "PUBLISHED" },
     });
     try {
@@ -492,8 +515,11 @@ router.post('/anomalies/:id/:action', async (req, res) => {
 // GET /api/admin/leaderboard
 router.get('/leaderboard', async (req, res) => {
   try {
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.status(400).json({ success: false, message: "eventId is required" });
+
     const teams = await prisma.team.findMany({
-      where: { status: 'PUBLISHED' },
+      where: { status: 'PUBLISHED', eventId },
       include: { evaluations: true, members: true },
     });
     const ranked = teams.map(t => {
@@ -521,10 +547,12 @@ router.get('/leaderboard', async (req, res) => {
 // GET /api/admin/pending-approvals
 router.get('/pending-approvals', async (req, res) => {
   try {
-    const draftTeams = await prisma.team.count({ where: { status: 'DRAFT' } });
-    const anomalies = await prisma.anomalyFlag.count({ where: { status: 'PENDING' } });
+    const eventId = req.query?.eventId;
+    if (!eventId) return res.json({ draftTeams: 0, anomalies: 0, total: 0 });
+
+    const draftTeams = await prisma.team.count({ where: { status: 'DRAFT', eventId } });
+    const anomalies = await prisma.anomalyFlag.count({ where: { status: 'PENDING', eventId } });
     return res.json({ draftTeams, anomalies, total: draftTeams + anomalies });
   } catch { return res.json({ draftTeams: 0, anomalies: 0, total: 0 }); }
 });
-
 export default router;

@@ -16,7 +16,6 @@ const SKILL_COLORS = {
   Designer: "bg-pink-100 text-pink-800",
 };
 
-// ── Distribution Rules Panel ──────────────────────────────────────────────────
 function RulesPanel({ rules, onChange }) {
   return (
     <div className="bg-white border border-stone-200 rounded-2xl p-6 space-y-6">
@@ -29,11 +28,8 @@ function RulesPanel({ rules, onChange }) {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-        {/* Team Size */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            Team Size
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Team Size</label>
           <select
             value={rules.teamSize}
             onChange={e => onChange({ ...rules, teamSize: Number(e.target.value) })}
@@ -46,11 +42,8 @@ function RulesPanel({ rules, onChange }) {
           <p className="text-xs text-stone-400">Number of participants per team</p>
         </div>
 
-        {/* Skill Balance */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            Skill Balance
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Skill Balance</label>
           <select
             value={rules.skillBalance}
             onChange={e => onChange({ ...rules, skillBalance: e.target.value })}
@@ -69,11 +62,8 @@ function RulesPanel({ rules, onChange }) {
           </p>
         </div>
 
-        {/* College Diversity */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            College Diversity
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">College Diversity</label>
           <select
             value={rules.collegeDiversity}
             onChange={e => onChange({ ...rules, collegeDiversity: e.target.value })}
@@ -92,11 +82,8 @@ function RulesPanel({ rules, onChange }) {
           </p>
         </div>
 
-        {/* Experience Grouping */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            Experience Grouping
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Experience Grouping</label>
           <select
             value={rules.experienceGrouping}
             onChange={e => onChange({ ...rules, experienceGrouping: e.target.value })}
@@ -115,35 +102,22 @@ function RulesPanel({ rules, onChange }) {
           </p>
         </div>
 
-        {/* Retry Limit */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            Diversity Retry Limit
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Diversity Retry Limit</label>
           <div className="flex items-center gap-3">
             <input
-              type="range"
-              min={10}
-              max={200}
-              step={10}
+              type="range" min={10} max={200} step={10}
               value={rules.retryLimit}
               onChange={e => onChange({ ...rules, retryLimit: Number(e.target.value) })}
               className="flex-1 accent-stone-900"
             />
-            <span className="text-sm font-bold text-stone-900 w-12 text-right">
-              {rules.retryLimit}
-            </span>
+            <span className="text-sm font-bold text-stone-900 w-12 text-right">{rules.retryLimit}</span>
           </div>
-          <p className="text-xs text-stone-400">
-            Max swap attempts before relaxing diversity constraint
-          </p>
+          <p className="text-xs text-stone-400">Max swap attempts before relaxing diversity constraint</p>
         </div>
 
-        {/* Exclusion Tags */}
         <div className="space-y-2">
-          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">
-            Exclude Skill Tags
-          </label>
+          <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Exclude Skill Tags</label>
           <input
             type="text"
             value={rules.excludeTags}
@@ -151,36 +125,19 @@ function RulesPanel({ rules, onChange }) {
             placeholder="e.g. intern, part-time"
             className="w-full border border-stone-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:border-stone-500"
           />
-          <p className="text-xs text-stone-400">
-            Comma-separated skill tags to exclude from team formation
-          </p>
+          <p className="text-xs text-stone-400">Comma-separated skill tags to exclude from team formation</p>
         </div>
       </div>
 
-      {/* Rules summary */}
       <div className="bg-stone-50 rounded-xl px-4 py-3 flex flex-wrap gap-2 items-center">
-        <span className="text-xs font-bold text-stone-500 uppercase tracking-widest mr-1">
-          Active rules:
-        </span>
-        <span className="text-xs bg-stone-900 text-white px-2 py-1 rounded-full font-semibold">
-          {rules.teamSize} per team
-        </span>
-        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-semibold">
-          Skill: {rules.skillBalance}
-        </span>
-        <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-semibold">
-          College: {rules.collegeDiversity}
-        </span>
-        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-semibold">
-          Experience: {rules.experienceGrouping}
-        </span>
-        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-semibold">
-          {rules.retryLimit} retries
-        </span>
+        <span className="text-xs font-bold text-stone-500 uppercase tracking-widest mr-1">Active rules:</span>
+        <span className="text-xs bg-stone-900 text-white px-2 py-1 rounded-full font-semibold">{rules.teamSize} per team</span>
+        <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full font-semibold">Skill: {rules.skillBalance}</span>
+        <span className="text-xs bg-emerald-100 text-emerald-800 px-2 py-1 rounded-full font-semibold">College: {rules.collegeDiversity}</span>
+        <span className="text-xs bg-purple-100 text-purple-800 px-2 py-1 rounded-full font-semibold">Experience: {rules.experienceGrouping}</span>
+        <span className="text-xs bg-amber-100 text-amber-800 px-2 py-1 rounded-full font-semibold">{rules.retryLimit} retries</span>
         {rules.excludeTags && (
-          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-semibold">
-            Exclude: {rules.excludeTags}
-          </span>
+          <span className="text-xs bg-red-100 text-red-800 px-2 py-1 rounded-full font-semibold">Exclude: {rules.excludeTags}</span>
         )}
       </div>
     </div>
@@ -188,7 +145,7 @@ function RulesPanel({ rules, onChange }) {
 }
 
 // ── Main TeamsTab ─────────────────────────────────────────────────────────────
-export default function TeamsTab() {
+export default function TeamsTab({ eventId }) {
   const [teams, setTeams] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
@@ -199,7 +156,6 @@ export default function TeamsTab() {
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [showRules, setShowRules] = useState(false);
 
-  // Distribution rules — all configurable
   const [rules, setRules] = useState({
     teamSize: 3,
     skillBalance: "strict",
@@ -213,10 +169,13 @@ export default function TeamsTab() {
   const publishedTeams = useMemo(() => teams.filter(t => t.status === "PUBLISHED"), [teams]);
 
   const loadTeams = async (targetStatus = statusFilter) => {
+    if (!eventId) return;
     setLoading(true);
     setError("");
     try {
+      // FIXED: pass eventId
       const response = await adminTeamsApi.getAll(
+        eventId,
         targetStatus === "ALL" ? "" : targetStatus
       );
       setTeams(response.teams || []);
@@ -227,20 +186,21 @@ export default function TeamsTab() {
     }
   };
 
-  useEffect(() => { loadTeams(statusFilter); }, [statusFilter]);
+  useEffect(() => { loadTeams(statusFilter); }, [statusFilter, eventId]);
 
   useEffect(() => {
     const interval = setInterval(() => loadTeams(statusFilter), 15000);
     return () => clearInterval(interval);
-  }, [statusFilter]);
+  }, [statusFilter, eventId]);
 
   const generateTeams = async () => {
+    if (!eventId) { setError("No event selected"); return; }
     setActionLoading(true);
     setError("");
     setSuccess("");
     try {
-      // Pass all rules to backend
-      const response = await adminTeamsApi.generate({
+      // FIXED: pass eventId as first arg
+      const response = await adminTeamsApi.generate(eventId, {
         teamSize: rules.teamSize,
         retryLimit: rules.retryLimit,
         skillBalance: rules.skillBalance,
@@ -255,7 +215,7 @@ export default function TeamsTab() {
       setMeta(response.meta || null);
       setSuccess(
         `${response.teams?.length || 0} draft team(s) generated! ` +
-        `${response.meta?.relaxedDiversityConstraint ? "⚠ Diversity constraint relaxed due to limited participants." : "✓ All rules applied."}`
+        `${response.meta?.relaxedDiversityConstraint ? "⚠ Diversity constraint relaxed." : "✓ All rules applied."}`
       );
     } catch (e) {
       setError(e.message || "Failed to generate teams");
@@ -271,7 +231,8 @@ export default function TeamsTab() {
     setSuccess("");
     setConfirmApprove(false);
     try {
-      const res = await adminTeamsApi.approveAndPublish();
+      // FIXED: pass eventId
+      const res = await adminTeamsApi.approveAndPublish(eventId);
       setStatusFilter("ALL");
       setMeta(null);
       setSuccess(`${res.publishedCount || "All"} team(s) published! Participants can now be notified.`);
@@ -291,7 +252,6 @@ export default function TeamsTab() {
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto text-stone-800">
 
-      {/* Header */}
       <section className="flex flex-col lg:flex-row lg:items-end justify-between gap-4">
         <div className="space-y-1">
           <h2 className="text-3xl font-bold tracking-tight text-stone-900">Team Builder</h2>
@@ -341,9 +301,7 @@ export default function TeamsTab() {
                   : "bg-emerald-600 hover:bg-emerald-500 text-white"
               }`}
             >
-              {confirmApprove
-                ? "⚠ Confirm Publish?"
-                : `Approve & Publish (${draftTeams.length})`}
+              {confirmApprove ? "⚠ Confirm Publish?" : `Approve & Publish (${draftTeams.length})`}
             </button>
           )}
           {confirmApprove && (
@@ -357,7 +315,6 @@ export default function TeamsTab() {
         </div>
       </section>
 
-      {/* Rules Panel — collapsible */}
       {showRules && <RulesPanel rules={rules} onChange={setRules} />}
 
       {error && (
@@ -371,7 +328,6 @@ export default function TeamsTab() {
         </section>
       )}
 
-      {/* Stats */}
       <section className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <article className="bg-white p-5 rounded-2xl border border-stone-200/60">
           <p className="text-xs font-semibold tracking-wide text-stone-500 uppercase">Draft</p>
@@ -402,7 +358,6 @@ export default function TeamsTab() {
         </section>
       )}
 
-      {/* Filter tabs */}
       <section className="flex flex-wrap gap-2">
         {["ALL", "DRAFT", "PUBLISHED"].map(status => (
           <button
@@ -415,16 +370,11 @@ export default function TeamsTab() {
             }`}
           >
             {status}{" "}
-            {status === "DRAFT"
-              ? `(${draftTeams.length})`
-              : status === "PUBLISHED"
-              ? `(${publishedTeams.length})`
-              : `(${teams.length})`}
+            {status === "DRAFT" ? `(${draftTeams.length})` : status === "PUBLISHED" ? `(${publishedTeams.length})` : `(${teams.length})`}
           </button>
         ))}
       </section>
 
-      {/* Team cards */}
       {loading ? (
         <div className="p-8 text-stone-500 text-sm">Loading teams...</div>
       ) : filteredTeams.length === 0 ? (
@@ -441,18 +391,11 @@ export default function TeamsTab() {
       ) : (
         <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTeams.map(team => (
-            <article
-              key={team.id}
-              className="bg-white rounded-2xl border border-stone-200/60 p-5 space-y-4"
-            >
+            <article key={team.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 space-y-4">
               <header className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">
-                    {team.name}
-                  </p>
-                  <h3 className="text-base font-bold text-stone-900">
-                    {team.members?.length || 0} members
-                  </h3>
+                  <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">{team.name}</p>
+                  <h3 className="text-base font-bold text-stone-900">{team.members?.length || 0} members</h3>
                 </div>
                 <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(team.status)}`}>
                   {team.status}
@@ -461,28 +404,17 @@ export default function TeamsTab() {
 
               <div className="space-y-2">
                 {(team.members || []).map(member => (
-                  <div
-                    key={member.id}
-                    className="rounded-xl border border-stone-100 px-3 py-2 flex items-center justify-between gap-3"
-                  >
+                  <div key={member.id} className="rounded-xl border border-stone-100 px-3 py-2 flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-700 shrink-0">
                         {getInitials(member.name)}
                       </div>
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-stone-900 truncate">
-                          {member.name}
-                        </p>
-                        <p className="text-xs text-stone-500 truncate">
-                          {member.college || "—"}
-                        </p>
+                        <p className="text-sm font-semibold text-stone-900 truncate">{member.name}</p>
+                        <p className="text-xs text-stone-500 truncate">{member.college || "—"}</p>
                       </div>
                     </div>
-                    <span
-                      className={`px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 ${
-                        SKILL_COLORS[member.skill] || "bg-stone-100 text-stone-700"
-                      }`}
-                    >
+                    <span className={`px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 ${SKILL_COLORS[member.skill] || "bg-stone-100 text-stone-700"}`}>
                       {member.skill}
                     </span>
                   </div>
@@ -490,9 +422,7 @@ export default function TeamsTab() {
               </div>
 
               {team.rationale && (
-                <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">
-                  {team.rationale}
-                </p>
+                <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">{team.rationale}</p>
               )}
             </article>
           ))}

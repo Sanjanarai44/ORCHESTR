@@ -16,12 +16,13 @@ export default function JudgesTab({ eventConfig, eventId }) {
   const [rubric, setRubric] = useState('');
   const [rubricLoading, setRubricLoading] = useState(false);
 
-  const criteria = eventConfig?.scoring_criteria || ['Innovation', 'Technical Execution', 'Presentation'];
+  const criteria = eventConfig?.scoring_criteria || [];
 
   const fetchJudges = async () => {
-    try {
-      setLoading(true);
-      const res = await fetch(`${NODE_URL}/api/admin/judges`);
+  if (!eventId) { setLoading(false); return; }
+  try {
+    setLoading(true);
+    const res = await fetch(`${NODE_URL}/api/admin/judges?eventId=${eventId}`);
       const data = await res.json();
       setJudges(data.judges || []);
     } catch (err) {
@@ -31,12 +32,16 @@ export default function JudgesTab({ eventConfig, eventId }) {
     }
   };
 
-  useEffect(() => { fetchJudges(); }, []);
+  useEffect(() => { fetchJudges(); }, [eventId]);
 
   const handleAssignTeams = async () => {
     setIsAssigning(true);
     try {
-      const res = await fetch(`${NODE_URL}/api/admin/assign-judges`, { method: 'POST' });
+      const res = await fetch(`${NODE_URL}/api/admin/assign-judges`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId }),
+    });
       const data = await res.json();
       if (data.success) {
         alert(`✅ Teams assigned to judges!`);
@@ -55,7 +60,11 @@ export default function JudgesTab({ eventConfig, eventId }) {
     setIsSendingLinks(true);
     setSendLinksMsg(null);
     try {
-      const res = await fetch(`${NODE_URL}/api/admin/send-judge-links`, { method: 'POST' });
+      const res = await fetch(`${NODE_URL}/api/admin/send-judge-links`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventId }),
+    });
       const data = await res.json();
       setSendLinksMsg(data.success
         ? `✅ Magic links sent to ${data.sentCount || 'all'} judges`

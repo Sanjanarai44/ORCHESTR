@@ -108,7 +108,7 @@ export default function EventSetupPage({ onComplete }) {
   const handleConfirm = () => {
     if (!config) return;
     setConfirming(true);
-    setTimeout(() => onComplete(config), 900);
+    setTimeout(() => onComplete(config));
   };
  
   return (

@@ -7,25 +7,44 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Event {
+  id           String        @id @default(cuid())
+  name         String
+  eventType    String        @default("hackathon")
+  status       String        @default("active")
+  config       String        // JSON string of full event config
+  organizerId  String
+  createdAt    DateTime      @default(now())
+  participants Participant[]
+  teams        Team[]
+  judges       Judge[]
+}
+
 model Participant {
   id        String   @id @default(cuid())
+  eventId   String
   name      String
-  email     String   @unique
+  email     String
   college   String
   skill     String
   stage     String   @default("roster")
   createdAt DateTime @default(now())
+  event     Event    @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, email])
 }
 
 model Team {
   id                String              @id @default(cuid())
+  eventId           String
   name              String
-  status            String              @default("active")
+  status            String              @default("DRAFT")
   aiRationale       String?
   problemStatement  String?
   evaluationGuide   String?
   resultsHeld       Boolean             @default(false)
   createdAt         DateTime            @default(now())
+  event             Event               @relation(fields: [eventId], references: [id])
   members           TeamMember[]
   evaluations       Evaluation[]
   anomalyFlags      AnomalyFlag[]
@@ -44,14 +63,18 @@ model TeamMember {
 
 model Judge {
   id             String       @id @default(cuid())
-  email          String       @unique
+  eventId        String
+  email          String
   name           String
   jwtToken       String?
   tokenUsed      Boolean      @default(false)
   assignedTeams  String       @default("[]")
   createdAt      DateTime     @default(now())
+  event          Event        @relation(fields: [eventId], references: [id])
   evaluations    Evaluation[]
   anomalyFlags   AnomalyFlag[]
+
+  @@unique([eventId, email])
 }
 
 model Evaluation {
@@ -72,7 +95,6 @@ model Evaluation {
   @@unique([judgeId, teamId])
 }
 
-
 model AnomalyFlag {
   id             String   @id @default(cuid())
   teamId         String
@@ -81,8 +103,8 @@ model AnomalyFlag {
   panelAvg       Float
   deviation      Float
   llmExplanation String?
-  status         String   @default("PENDING")  // PENDING | RESOLVED
-  resolution     String?                        // accepted | discarded | overridden
+  status         String   @default("PENDING")
+  resolution     String?
   createdAt      DateTime @default(now())
   team           Team     @relation(fields: [teamId], references: [id])
   judge          Judge    @relation(fields: [judgeId], references: [id])
@@ -93,8 +115,8 @@ model EmailLog {
   recipientId    String
   recipientEmail String?
   recipientName  String?
-  emailType      String    // magic_link | welcome | reminder | results | anomaly_alert
-  status         String    @default("PENDING")  // SENT | FAILED | PENDING
+  emailType      String
+  status         String    @default("PENDING")
   sentAt         DateTime?
   errorMessage   String?
   attempts       Int       @default(0)
@@ -102,11 +124,10 @@ model EmailLog {
   createdAt      DateTime  @default(now())
 }
 
-
 model MentorConversation {
   id        String   @id @default(cuid())
   teamId    String
-  role      String   // user | assistant
+  role      String
   content   String
   timestamp DateTime @default(now())
   team      Team     @relation(fields: [teamId], references: [id])
@@ -117,7 +138,6 @@ model EventSettings {
   value     String
   updatedAt DateTime @default(now()) @updatedAt
 }
-
 
 model AiEmailContent {
   id          String   @id @default(cuid())
