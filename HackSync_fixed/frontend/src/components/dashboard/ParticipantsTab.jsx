@@ -137,7 +137,7 @@ export default function ParticipantsTab({ eventId }) {
     );
   }
 
-  const distinctUniversitiesCount = new Set(participants.map(p => p.university)).size;
+  const distinctUniversitiesCount = new Set(participants.map(p => p.university).filter(u => u && u !== "Not Specified")).size;
   const teamedCount = participants.filter(p => !p.looking).length;
   const teamedPercent = participants.length > 0 ? Math.round((teamedCount / participants.length) * 100) : 0;
   const diversityPercent = participants.length > 0 ? Math.min(100, Math.round((distinctUniversitiesCount / participants.length) * 100 * 3)) : 0;
