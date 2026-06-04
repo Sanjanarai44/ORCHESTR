@@ -42,7 +42,7 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
     for (const row of results) {
       if (!row.email) continue;
       const skill = normalizeSkill(row.skill || row.role || "Frontend");
-      await prisma.participant.upsert({
+      const participant = await prisma.participant.upsert({
         where: { eventId_email: { eventId, email: row.email.trim() } },
         update: {
           name: row.name?.trim(),
