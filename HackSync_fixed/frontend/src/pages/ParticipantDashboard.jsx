@@ -13,13 +13,19 @@ const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 // Demo login gate removed as requested
 const STAGES = [
   { key: 'registered', label: 'Registered', icon: 'how_to_reg' },
-  { key: 'team', label: 'Team Formation', icon: 'diversity_3' },
-  { key: 'idea', label: 'Idea Submission', icon: 'lightbulb' },
   { key: 'development', label: 'Development', icon: 'code' },
-  { key: 'submission', label: 'Final Submission', icon: 'upload' },
-  { key: 'completed', label: 'Completed', icon: 'flag' },
+  { key: 'evaluation', label: 'Evaluation', icon: 'analytics' },
+  { key: 'demo', label: 'Demo', icon: 'workspace_premium' },
+  { key: 'final', label: 'Final', icon: 'stars' },
 ];
 
+const STAGE_MAP = {
+  roster: 'registered',
+  development: 'development',
+  evaluation: 'evaluation',
+  demo: 'demo',
+  final: 'final',
+};
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function ParticipantDashboard({ eventConfig, eventId, authenticatedParticipant }) {
   const [participant, setParticipant] = useState(authenticatedParticipant || {
@@ -248,7 +254,8 @@ console.log("PARTICIPANT STAGE:", participant.stage);
     </div>
   );
   function SimpleStageTracker({ participant }) {
-  const currentStage = participant?.stage || 'registered';
+  const rawStage = participant?.stage || 'roster';
+const currentStage = STAGE_MAP[rawStage] || rawStage;
 
   const currentIndex = STAGES.findIndex(s => s.key === currentStage);
 

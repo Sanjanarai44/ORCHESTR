@@ -363,6 +363,10 @@ router.post("/approve-publish-teams", async (req, res) => {
       where: { status: "DRAFT", eventId },
       data: { status: "PUBLISHED" },
     });
+    await prisma.participant.updateMany({
+      where: { eventId, stage: "roster" },
+      data: { stage: "development" },
+    });
     try {
       await prisma.emailLog.create({
         data: {

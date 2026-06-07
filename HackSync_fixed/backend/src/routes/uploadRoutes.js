@@ -58,33 +58,6 @@ router.post("/upload-roster", upload.single("file"), async (req, res) => {
         },
       });
       
-      // Generate magic link and queue email
-      const token = jwt.sign({ participantId: participant.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
-      const portalLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
-      
-      const emailLog = await prisma.emailLog.create({
-        data: {
-          recipientId: participant.id,
-          recipientEmail: participant.email,
-          recipientName: participant.name,
-          emailType: 'magic_link',
-          status: 'PENDING'
-        }
-      });
-      
-      await emailQueue.add('send_email', {
-        emailType: 'magic_link',
-        recipientId: participant.id,
-        recipientEmail: participant.email,
-        recipientName: participant.name,
-        templateData: {
-          judgeName: participant.name,
-          magicLink: portalLink,
-          expiryHours: 720
-        },
-        logId: emailLog.id
-      }, { jobId: `magic_link_participant_${participant.id}_${Date.now()}` });
-
       count++;
     }
 
@@ -107,29 +80,49 @@ router.get("/participants", async (req, res) => {
       orderBy: { name: "asc" },
     });
 
+    const teams = await prisma.team.findMany({
+      where: { eventId },
+      include: { members: true }
+    });
+
+    const emailToTeamMap = {};
+    for (const t of teams) {
+      for (const m of t.members) {
+        if (m.email) {
+          emailToTeamMap[m.email.toLowerCase()] = {
+            teamName: t.name,
+            teamStatus: t.status
+          };
+        }
+      }
+    }
+
     return res.json({
       success: true,
       data: participants.map(p => {
         const token = jwt.sign({ participantId: p.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
         const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
+        const teamInfo = emailToTeamMap[p.email.toLowerCase()] || { teamName: null, teamStatus: null };
         return {
           id: p.id, name: p.name, email: p.email,
           college: p.college, skill: p.skill,
           stage: p.stage || "roster",
           createdAt: p.createdAt,
           magicLink,
-          teamName: null, teamStatus: null,
+          teamName: teamInfo.teamName, teamStatus: teamInfo.teamStatus,
         };
       }),
       participants: participants.map(p => {
         const token = jwt.sign({ participantId: p.id }, process.env.JWT_SECRET || 'secret', { expiresIn: '30d' });
         const magicLink = `${process.env.FRONTEND_URL || 'http://localhost:5173'}/?participantToken=${token}`;
+        const teamInfo = emailToTeamMap[p.email.toLowerCase()] || { teamName: null, teamStatus: null };
         return {
           id: p.id, name: p.name, email: p.email,
           college: p.college, skill: p.skill,
           stage: p.stage || "roster",
           createdAt: p.createdAt,
           magicLink,
+          teamName: teamInfo.teamName, teamStatus: teamInfo.teamStatus,
         };
       }),
     });

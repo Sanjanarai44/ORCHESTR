@@ -15,7 +15,7 @@ function stageIcon(name = "") {
 
 const DEFAULT_STAGES = ["Registration", "Team Formation", "Evaluation", "Final Demo", "Results"];
 // Maps stage index to DB stage key
-const STAGE_KEYS = ["roster", "development", "hacking", "evaluation", "demo", "final"];
+const STAGE_KEYS = ["roster", "development", "evaluation", "demo", "final"];
 
 export default function WorkflowTracker({ eventConfig, eventId = 1 }) {
   const rawStages = eventConfig?.stages?.length > 0 ? eventConfig.stages : DEFAULT_STAGES;
