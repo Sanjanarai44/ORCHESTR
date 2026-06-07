@@ -58,7 +58,7 @@ export default function EventJourney({ participant, eventConfig }) {
           <h3 className="text-xs font-bold uppercase tracking-wide text-[#717973] mb-2">Current Stage</h3>
           <p className="text-lg font-bold text-[#012d1d]">{currentStageName}</p>
           <span className="inline-flex mt-3 bg-[#dff6ea] text-[#012d1d] text-xs font-semibold px-3 py-1 rounded-full">
-            {isFinal ? 'Qualified' : 'In Progress'}
+            {isFinal ? 'Qualified' : isEvaluation ? 'Under Review' : 'Active'}
           </span>
         </div>
 
@@ -81,7 +81,9 @@ export default function EventJourney({ participant, eventConfig }) {
         {/* Submission */}
         <div className="bg-white rounded-xl p-5 border border-[#c1c8c2]/20 shadow-sm">
           <h3 className="text-xs font-bold uppercase tracking-wide text-[#717973] mb-2">Submission</h3>
-          <p className="text-base font-bold text-[#012d1d]">{submissionStatus}</p>
+          <p className="text-base font-bold text-[#012d1d]">
+  {isFinal ? 'Submitted' : isEvaluation ? 'Ready to Submit' : 'Not Open Yet'}
+</p>
           <p className="text-xs text-[#414844] mt-2">
             {currentIndex <= 1
               ? 'Submission opens at evaluation stage'
