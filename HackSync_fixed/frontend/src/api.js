@@ -153,6 +153,9 @@ export const aiApi = {
   explainAnomaly: (data) => aiRequest('/explain-anomaly', { method: 'POST', body: JSON.stringify(data) }),
   compatibilitySummary: (data) => aiRequest('/compatibility-summary', { method: 'POST', body: JSON.stringify(data) }),
   configureEvent: (data) => aiRequest('/configure-event', { method: 'POST', body: JSON.stringify(data) }),
+  mentorInit: (eventId, teamId, participantId) => aiRequest(`/ai-mentor/init?event_id=${eventId}&team_id=${teamId}&participant_id=${participantId}`),
+  mentorMessage: (data) => aiRequest('/ai-mentor', { method: 'POST', body: JSON.stringify(data) }),
+  mentorContext: (data) => aiRequest('/ai-mentor/context', { method: 'POST', body: JSON.stringify(data) }),
 };
 
 // ─── useApi hook ──────────────────────────────────────────────────────────────

@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-
-const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
+import { aiApi } from '../api';
 
 export default function AIMentor({ eventId, teamId, teamName, participantId, onBack }) {
   const [messages, setMessages] = useState([]);
@@ -21,8 +20,7 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
   useEffect(() => {
     async function loadInit() {
       try {
-        const res = await fetch(`${AI}/ai-mentor/init?event_id=${eventId || 1}&team_id=${teamId || 1}&participant_id=${participantId || 'demo'}`);
-        const data = await res.json();
+        const data = await aiApi.mentorInit(eventId || 1, teamId || 1, participantId || 'demo');
         
         if (data.history && data.history.length > 0) {
           setMessages(data.history);
@@ -56,17 +54,12 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
     setIsTyping(true);
 
     try {
-      const res = await fetch(`${AI}/ai-mentor`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_id: eventId || 1,
-          team_id: teamId || 1,
-          participant_id: participantId || 'demo',
-          message: text
-        })
+      const data = await aiApi.mentorMessage({
+        event_id: eventId || 1,
+        team_id: teamId || 1,
+        participant_id: participantId || 'demo',
+        message: text
       });
-      const data = await res.json();
       
       setIsTyping(false);
       if (data.reply) {
@@ -85,15 +78,11 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
     setContextText(editContextValue);
     setIsEditingContext(false);
     try {
-      await fetch(`${AI}/ai-mentor/context`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_id: eventId || 1,
-          team_id: teamId || 1,
-          participant_id: participantId || 'demo',
-          problem_description: editContextValue
-        })
+      await aiApi.mentorContext({
+        event_id: eventId || 1,
+        team_id: teamId || 1,
+        participant_id: participantId || 'demo',
+        problem_description: editContextValue
       });
     } catch (err) {
       console.error("Failed to save context", err);
@@ -108,15 +97,11 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       try {
-        await fetch(`${AI}/ai-mentor/context`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            event_id: eventId || 1,
-            team_id: teamId || 1,
-            participant_id: participantId || 'demo',
-            session_notes: val
-          })
+        await aiApi.mentorContext({
+          event_id: eventId || 1,
+          team_id: teamId || 1,
+          participant_id: participantId || 'demo',
+          session_notes: val
         });
         setSaveStatus('Saved ✓');
         setTimeout(() => setSaveStatus('Auto-saved'), 2000);
