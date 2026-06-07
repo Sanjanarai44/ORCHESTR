@@ -1,5 +1,13 @@
 import React from 'react';
 
+const STAGE_MAP = {
+  roster: 'Registered',
+  development: 'Development',
+  evaluation: 'Evaluation',
+  demo: 'Demo',
+  final: 'Final',
+};
+
 export default function ParticipantHeader({ participant, onLogout }) {
   const initials = participant?.name
     ? participant.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
@@ -21,7 +29,7 @@ export default function ParticipantHeader({ participant, onLogout }) {
           participant?.stage === 'final' ? 'bg-emerald-100 text-emerald-800' :
           'bg-[#012d1d]/10 text-[#012d1d]'
         }`}>
-          {participant?.stage || 'roster'}
+          {STAGE_MAP[participant?.stage] || 'Registered'}
         </span>
         <button
           onClick={onLogout}
