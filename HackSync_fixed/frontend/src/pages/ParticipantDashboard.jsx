@@ -19,7 +19,14 @@ const STAGES = [
   { key: 'submission', label: 'Final Submission', icon: 'upload' },
   { key: 'completed', label: 'Completed', icon: 'flag' },
 ];
-
+const STAGE_MAP = {
+  roster: 'registered',
+  development: 'development',
+  hacking: 'development',   // maps to same STAGES key
+  evaluation: 'submission',
+  demo: 'submission',
+  final: 'completed',
+};
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function ParticipantDashboard({ eventConfig, eventId, authenticatedParticipant }) {
   const [participant, setParticipant] = useState(authenticatedParticipant || {
@@ -248,7 +255,8 @@ console.log("PARTICIPANT STAGE:", participant.stage);
     </div>
   );
   function SimpleStageTracker({ participant }) {
-  const currentStage = participant?.stage || 'registered';
+  const rawStage = participant?.stage || 'roster';
+const currentStage = STAGE_MAP[rawStage] || rawStage;
 
   const currentIndex = STAGES.findIndex(s => s.key === currentStage);
 

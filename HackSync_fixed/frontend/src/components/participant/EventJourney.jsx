@@ -1,7 +1,16 @@
 import React from 'react';
 
 export default function EventJourney({ participant, eventConfig }) {
-  const currentStage = participant?.stage || 'registered';
+  const STAGE_MAP = {
+  roster: 'registered',
+  development: 'development',
+  hacking: 'development',   // maps to same STAGES key
+  evaluation: 'submission',
+  demo: 'submission',
+  final: 'completed',
+};
+const rawStage = participant?.stage || 'roster';
+const currentStage = STAGE_MAP[rawStage] || rawStage;
   const stages = eventConfig?.stages || [];
   const eventName = eventConfig?.event_name || 'Event';
 
