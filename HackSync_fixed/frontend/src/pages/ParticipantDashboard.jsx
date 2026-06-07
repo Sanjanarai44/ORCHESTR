@@ -13,19 +13,18 @@ const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 // Demo login gate removed as requested
 const STAGES = [
   { key: 'registered', label: 'Registered', icon: 'how_to_reg' },
-  { key: 'team', label: 'Team Formation', icon: 'diversity_3' },
-  { key: 'idea', label: 'Idea Submission', icon: 'lightbulb' },
   { key: 'development', label: 'Development', icon: 'code' },
-  { key: 'submission', label: 'Final Submission', icon: 'upload' },
-  { key: 'completed', label: 'Completed', icon: 'flag' },
+  { key: 'evaluation', label: 'Evaluation', icon: 'analytics' },
+  { key: 'demo', label: 'Demo', icon: 'workspace_premium' },
+  { key: 'final', label: 'Final', icon: 'stars' },
 ];
+
 const STAGE_MAP = {
   roster: 'registered',
   development: 'development',
-  hacking: 'development',   // maps to same STAGES key
-  evaluation: 'submission',
-  demo: 'submission',
-  final: 'completed',
+  evaluation: 'evaluation',
+  demo: 'demo',
+  final: 'final',
 };
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function ParticipantDashboard({ eventConfig, eventId, authenticatedParticipant }) {

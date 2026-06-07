@@ -2,70 +2,40 @@ import React from 'react';
 
 export default function EventJourney({ participant, eventConfig }) {
   const STAGE_MAP = {
-  roster: 'registered',
-  development: 'development',
-  hacking: 'development',   // maps to same STAGES key
-  evaluation: 'submission',
-  demo: 'submission',
-  final: 'completed',
-};
-const rawStage = participant?.stage || 'roster';
-const currentStage = STAGE_MAP[rawStage] || rawStage;
+    roster: 'registered',
+    development: 'development',
+    evaluation: 'evaluation',
+    demo: 'demo',
+    final: 'final',
+  };
+  const rawStage = participant?.stage || 'roster';
+  const currentStage = STAGE_MAP[rawStage] || rawStage;
   const stages = eventConfig?.stages || [];
   const eventName = eventConfig?.event_name || 'Event';
 
-  const stageKeys = [
-    'registered',
-    'team',
-    'idea',
-    'development',
-    'submission',
-    'completed'
-  ];
-
+  const stageKeys = ['registered', 'development', 'evaluation', 'demo', 'final'];
   const currentIndex = stageKeys.indexOf(currentStage.toLowerCase());
 
-const stageLabels = {
-  registered: 'Registered',
-  team: 'Team Formation',
-  idea: 'Idea Submission',
-  development: 'Development',
-  submission: 'Final Submission',
-  completed: 'Completed'
-};
+  const stageLabels = {
+    registered: 'Registered',
+    development: 'Development',
+    evaluation: 'Evaluation',
+    demo: 'Demo',
+    final: 'Final',
+  };
 
-const currentStageName =
-  stageLabels[currentStage] || currentStage;
-
-const nextStageName =
-  stageLabels[stageKeys[currentIndex + 1]] ||
-  'Completed';
-  console.log("Current Stage:", currentStage);
-  console.log("Current Index:", currentIndex);
-  console.log("Event Stages:", stages);
-  console.log("Current Stage Name:", currentStageName);
+  const currentStageName = stageLabels[currentStage] || currentStage;
+  const nextStageName = stageLabels[stageKeys[currentIndex + 1]] || 'Completed';
 
   const isEarlyStage = currentIndex <= 1;
-  const isEvaluation =
-  currentStage === 'submission' ||
-  currentStage === 'completed';
-  const isFinal = currentStage === 'completed';
-
-  const evaluatorText = isEvaluation
-  ? 'Assigned by committee'
-  : 'Not assigned yet';
-
-  const evaluatorNote = isEvaluation
-  ? 'Your submission is under review'
-  : 'Evaluators will be assigned after submission';
-
+  const isEvaluation = currentStage === 'evaluation' || currentStage === 'demo';
+  const isFinal = currentStage === 'final';
   const submissionStatus =
-  currentStage === 'completed'
-    ? 'Submitted'
-    : currentStage === 'submission'
-    ? 'Ready to Submit'
-    : 'In Progress';
-
+    currentStage === 'final' ? 'Submitted' :
+    currentStage === 'evaluation' || currentStage === 'demo' ? 'Ready to Submit' :
+    'In Progress';
+  const evaluatorText = isEvaluation ? 'Assigned by committee' : 'Not assigned yet';
+  const evaluatorNote = isEvaluation ? 'Your submission is under review' : 'Evaluators will be assigned after submission';
   const advancementRule = eventConfig?.advancement_rule || '';
 
   return (
