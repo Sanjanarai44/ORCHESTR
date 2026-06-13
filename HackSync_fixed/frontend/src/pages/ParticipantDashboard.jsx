@@ -6,6 +6,7 @@ import WelcomeHero from '../components/participant/WelcomeHero';
 import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
 import AIMentor from './AIMentor';
+import ParticipantLeaderboard from '../components/participant/ParticipantLeaderboard';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -235,18 +236,19 @@ console.log("PARTICIPANT STAGE:", participant.stage);
             </div>
 
             <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
-              <SimpleStageTracker participant={participant} />
-              <EventJourney participant={participant} eventConfig={eventConfig} />
-            </div>
+  <SimpleStageTracker participant={participant} />
+  <EventJourney participant={participant} eventConfig={eventConfig} />
+</div>
 
             <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6">
               <TeamAndResources
-                team={team}
-                eventConfig={eventConfig}
-                compatibilitySummary={compatibilitySummary}
-                compatibilityLoading={compatibilityLoading}
-                onOpenAIMentor={() => setShowAIMentor(true)}
-              />
+  team={team}
+  eventConfig={eventConfig}
+  compatibilitySummary={compatibilitySummary}
+  compatibilityLoading={compatibilityLoading}
+  onOpenAIMentor={() => setShowAIMentor(true)}
+  leaderboard={<ParticipantLeaderboard eventId={eventConfig?.id || eventId || 1} currentTeamId={team?.id} />}
+/>
             </div>
           </div>
         )}

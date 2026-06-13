@@ -4,7 +4,8 @@ export default function TeamAndResources({
   team,
   compatibilitySummary,
   compatibilityLoading,
-  onOpenAIMentor
+  onOpenAIMentor,
+  leaderboard
 }) {
   const resources = [
     { title: 'API Documentation', icon: 'menu_book', desc: 'Core endpoint schemas' },
@@ -100,6 +101,7 @@ export default function TeamAndResources({
         </div>
       </div>
     </div>
+    {leaderboard}
 
     {/* RESOURCES FULL WIDTH */}
     <div className="bg-[#012d1d] rounded-xl p-8 flex flex-col text-white relative overflow-hidden shadow-sm">
