@@ -28,8 +28,10 @@ model Participant {
   college   String
   skill     String
   stage     String   @default("roster")
+  sessionNotes String? // Added for per-participant session notes
   createdAt DateTime @default(now())
   event     Event    @relation(fields: [eventId], references: [id])
+  mentorConversations MentorConversation[]
 
   @@unique([eventId, email])
 }
@@ -125,12 +127,14 @@ model EmailLog {
 }
 
 model MentorConversation {
-  id        String   @id @default(cuid())
-  teamId    String
-  role      String
-  content   String
-  timestamp DateTime @default(now())
-  team      Team     @relation(fields: [teamId], references: [id])
+  id            String       @id @default(cuid())
+  teamId        String
+  participantId String?
+  role          String
+  content       String
+  timestamp     DateTime     @default(now())
+  team          Team         @relation(fields: [teamId], references: [id])
+  participant   Participant? @relation(fields: [participantId], references: [id])
 }
 
 model EventSettings {

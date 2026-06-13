@@ -273,59 +273,40 @@ class MentorRequest(BaseModel):
     message: str
 
 @app.post("/ai-mentor")
-def ai_mentor(req: MentorRequest):
-    conn = sqlite3.connect("eventflow.db")
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    
+async def ai_mentor(req: MentorRequest):
     try:
-        # Fetch event and team context
-        c.execute("SELECT name, config FROM events WHERE id = ?", (req.event_id,))
-        event = c.fetchone()
-        
-        c.execute("SELECT name FROM teams WHERE id = ?", (req.team_id,))
-        team = c.fetchone()
-        
-        event_name = event["name"] if event else "Unknown Event"
-        event_config = json.loads(event["config"]) if event and event["config"] else {}
-        team_name = team["name"] if team else f"Team {req.team_id}"
-        
-        # Save user message
-        c.execute(
-            "INSERT INTO mentor_history (event_id, team_id, role, content) VALUES (?, ?, ?, ?)",
-            (req.event_id, req.team_id, "user", req.message)
-        )
-        conn.commit()
+        # Save user message to Postgres via Node backend
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            await http_client.post(
+                f"{NODE_URL}/api/mentor/message",
+                json={"teamId": req.team_id, "participantId": req.participant_id, "role": "user", "content": req.message}
+            )
+            
+            # Fetch history and context
+            init_res = await http_client.get(
+                f"{NODE_URL}/api/mentor/init",
+                params={"teamId": req.team_id, "participantId": req.participant_id}
+            )
+            data = init_res.json()
+            history = data.get("history", [])[-20:] # Retain up to 20 messages of context
+            problem_description = data.get("problem_description", "")
 
-        # Get history
-        c.execute(
-            "SELECT role, content FROM mentor_history WHERE event_id = ? AND team_id = ? ORDER BY id ASC",
-            (req.event_id, req.team_id)
-        )
-        history = c.fetchall()
-
-        # Get context to check for problem_description
-        c.execute("SELECT problem_description FROM mentor_context WHERE team_id = ?", (req.team_id,))
-        context_row = c.fetchone()
-        problem_description = context_row["problem_description"] if context_row and context_row["problem_description"] else ""
-
+        # Prerequisite Lock: Programmatically blocks all AI interaction until a team explicitly defines a clear problem statement
         if not problem_description or not problem_description.strip() or problem_description.lower() == "none":
             reply = "I cannot provide guidance without knowing your project's problem description. Please provide a problem description or explain the specific problem you are trying to solve in your team context first."
-            c.execute(
-                "INSERT INTO mentor_history (event_id, team_id, role, content) VALUES (?, ?, ?, ?)",
-                (req.event_id, req.team_id, "assistant", reply)
-            )
-            conn.commit()
+            async with httpx.AsyncClient(timeout=10) as http_client:
+                await http_client.post(
+                    f"{NODE_URL}/api/mentor/message",
+                    json={"teamId": req.team_id, "participantId": req.participant_id, "role": "assistant", "content": reply}
+                )
             return {"reply": reply}
 
-        system_prompt = f"""You are an AI mentor for the event '{event_name}'.
-Event details: {json.dumps(event_config)}
-You are mentoring '{team_name}'.
+        system_prompt = f"""You are an AI mentor and assistant for a hackathon team.
 Their problem description: '{problem_description}'
 
 CRITICAL INSTRUCTIONS:
-1. CONTEXT AWARENESS: You must ONLY reply to questions related to their specific problem description. Refuse to answer ANY out-of-context or off-topic questions (e.g. random Leetcode problems, unrelated algorithms). Remind them to stay focused on their specific project.
-2. EXPLANATORY SOCRATIC MODE: You must act as a guide. You ARE allowed to explain architectural concepts, algorithms, and theory clearly to help them understand. However, you MUST NEVER give direct answers. You MUST ALWAYS end your response with a guiding question to provoke their own critical thinking process.
+1. CONTEXT AWARENESS: You must ONLY reply to questions related to their specific problem description. Refuse to answer ANY out-of-context or off-topic questions (e.g. random Leetcode problems, unrelated algorithms, travel advice). Do not write code for off-topic questions. Remind them to stay focused on their specific project.
+2. EXPLANATORY SOCRATIC MODE: You must act as a guide. You ARE allowed to explain architectural concepts, algorithms, and theory clearly to help them understand. However, you MUST NEVER give direct answers or solutions. You MUST ALWAYS end your response with a guiding question (using a '?') to provoke their own critical thinking process.
 3. NO DIRECT CODE: You are STRICTLY FORBIDDEN from providing direct solutions, commands, or raw code snippets. If they ask for code, explain the concept conceptually and ask them how they might implement it.
 """
         messages = [{"role": "system", "content": system_prompt}]
@@ -338,26 +319,24 @@ CRITICAL INSTRUCTIONS:
         )
         reply = response.choices[0].message.content
 
-        # Post-Generation Check: RegEx layer
+        # Syntax Verification: Pre-UI filtering loop that instantly rejects any AI response lacking a question mark or containing code blocks.
         code_regex = re.compile(
             r"```|`|^\s*(def|class|function|const|let|var|import|export|if|for|while|return)\b",
             re.IGNORECASE | re.MULTILINE
         )
-        if code_regex.search(reply):
-            reply = "I noticed you might be looking for a direct solution. How might you approach this problem conceptually instead?"
+        if code_regex.search(reply) or "?" not in reply:
+            reply = "I noticed you might be looking for a direct solution. As a Socratic mentor, I cannot write code or provide direct answers. How might you approach this problem conceptually instead?"
 
         # Save AI response
-        c.execute(
-            "INSERT INTO mentor_history (event_id, team_id, role, content) VALUES (?, ?, ?, ?)",
-            (req.event_id, req.team_id, "assistant", reply)
-        )
-        conn.commit()
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            await http_client.post(
+                f"{NODE_URL}/api/mentor/message",
+                json={"teamId": req.team_id, "participantId": req.participant_id, "role": "assistant", "content": reply}
+            )
         
         return {"reply": reply}
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 class ContextRequest(BaseModel):
     event_id: Union[str, int]
@@ -367,48 +346,30 @@ class ContextRequest(BaseModel):
     session_notes: str = None
 
 @app.get("/ai-mentor/init")
-def ai_mentor_init(event_id: str, team_id: str):
-    conn = sqlite3.connect("eventflow.db")
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
+async def ai_mentor_init(event_id: str, team_id: str, participant_id: Optional[str] = None):
     try:
-        # Get history
-        c.execute("SELECT role, content FROM mentor_history WHERE event_id = ? AND team_id = ? ORDER BY id ASC", (event_id, team_id))
-        history = [dict(row) for row in c.fetchall()]
-
-        # Get context
-        c.execute("SELECT problem_description, session_notes FROM mentor_context WHERE team_id = ?", (team_id,))
-        context = c.fetchone()
-        
-        return {
-            "history": history,
-            "problem_description": context["problem_description"] if context else "",
-            "session_notes": context["session_notes"] if context else ""
-        }
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            res = await http_client.get(
+                f"{NODE_URL}/api/mentor/init",
+                params={"teamId": team_id, "participantId": participant_id}
+            )
+            return res.json()
     except Exception as e:
         return {"error": str(e)}
-    finally:
-        conn.close()
 
 @app.post("/ai-mentor/context")
-def update_ai_mentor_context(req: ContextRequest):
-    conn = sqlite3.connect("eventflow.db")
-    c = conn.cursor()
+async def update_ai_mentor_context(req: ContextRequest):
     try:
-        c.execute("SELECT 1 FROM mentor_context WHERE team_id = ?", (req.team_id,))
-        exists = c.fetchone()
-        
-        if exists:
-            if req.problem_description is not None:
-                c.execute("UPDATE mentor_context SET problem_description = ?, updated_at = CURRENT_TIMESTAMP WHERE team_id = ?", (req.problem_description, req.team_id))
-            if req.session_notes is not None:
-                c.execute("UPDATE mentor_context SET session_notes = ?, updated_at = CURRENT_TIMESTAMP WHERE team_id = ?", (req.session_notes, req.team_id))
-        else:
-            c.execute("INSERT INTO mentor_context (team_id, event_id, problem_description, session_notes) VALUES (?, ?, ?, ?)", 
-                      (req.team_id, req.event_id, req.problem_description or "", req.session_notes or ""))
-        conn.commit()
-        return {"success": True}
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            res = await http_client.post(
+                f"{NODE_URL}/api/mentor/context",
+                json={
+                    "teamId": req.team_id, 
+                    "participantId": req.participant_id, 
+                    "problem_description": req.problem_description,
+                    "session_notes": req.session_notes
+                }
+            )
+            return res.json()
     except Exception as e:
-        return {"error": str(e)}
-    finally:
-        conn.close()
+        return {"error": str(e)}
