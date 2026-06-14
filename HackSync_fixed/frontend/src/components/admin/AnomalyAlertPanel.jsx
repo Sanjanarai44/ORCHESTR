@@ -1,27 +1,21 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { aiApi } from '../../api';
 
 const API = import.meta.env.VITE_API_URL || 'https://orchestr-ai.onrender.com';
 const WS_URL = (API.replace(/^http/, 'ws')) + '/ws/admin';
 
-/**
- * AnomalyAlertPanel — Admin component exported for T2 (Komalpreet).
- *
- * Subscribes to WebSocket channel anomaly:new on mount.
- * Shows live alert banners with pulsing red dot, LLM explanation, and resolution buttons.
- * Collapsible resolved flags history section.
- *
- * Usage: import AnomalyAlertPanel from '../components/admin/AnomalyAlertPanel';
- */
 export default function AnomalyAlertPanel() {
   const [pendingFlags, setPendingFlags] = useState([]);
   const [resolvedFlags, setResolvedFlags] = useState([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [overrideModal, setOverrideModal] = useState(null); // flagId or null
+  const [overrideModal, setOverrideModal] = useState(null);
   const [overrideScore, setOverrideScore] = useState('');
   const [resolving, setResolving] = useState({});
+  const [recommendations, setRecommendations] = useState({});
+  const [recLoading, setRecLoading] = useState({});
   const wsRef = useRef(null);
 
-  // ── Load existing PENDING flags on mount ──────────────────────────────────
+  // ── Load existing PENDING flags on mount ─────────────────────────────────
   useEffect(() => {
     const loadFlags = async () => {
       try {
@@ -30,7 +24,7 @@ export default function AnomalyAlertPanel() {
           const data = await res.json();
           setPendingFlags(data.flags || []);
         }
-      } catch { /* non-critical */ }
+      } catch { }
     };
     const loadResolved = async () => {
       try {
@@ -39,11 +33,42 @@ export default function AnomalyAlertPanel() {
           const data = await res.json();
           setResolvedFlags(data.flags || []);
         }
-      } catch { /* non-critical */ }
+      } catch { }
     };
     loadFlags();
     loadResolved();
   }, []);
+
+  // ── Fetch AI recommendation per flag ─────────────────────────────────────
+  const fetchRecommendation = useCallback(async (flag) => {
+    if (recommendations[flag.id] || recLoading[flag.id]) return;
+    setRecLoading(prev => ({ ...prev, [flag.id]: true }));
+    try {
+      const res = await aiApi.explainAnomaly({
+        team_name: flag.teamName,
+        judge_name: flag.judgeName,
+        judge_score: flag.newScore,
+        panel_average: flag.panelAvg,
+        threshold: 2.0,
+      });
+      setRecommendations(prev => ({ ...prev, [flag.id]: res }));
+    } catch {
+      setRecommendations(prev => ({
+        ...prev,
+        [flag.id]: {
+          explanation: flag.llmExplanation,
+          recommendation: 'accept',
+          recommendation_reason: 'Could not generate recommendation.',
+        }
+      }));
+    } finally {
+      setRecLoading(prev => ({ ...prev, [flag.id]: false }));
+    }
+  }, [recommendations, recLoading]);
+
+  useEffect(() => {
+    pendingFlags.forEach(flag => fetchRecommendation(flag));
+  }, [pendingFlags]);
 
   // ── WebSocket subscription ────────────────────────────────────────────────
   useEffect(() => {
@@ -63,15 +88,11 @@ export default function AnomalyAlertPanel() {
             setPendingFlags((prev) => prev.filter((f) => f.id !== data.flagId));
             setResolvedFlags((prev) => [{ id: data.flagId, resolution: data.resolution }, ...prev]);
           }
-        } catch { /* bad message */ }
+        } catch { }
       };
 
-      ws.onclose = () => {
-        // Auto-reconnect after 3s
-        setTimeout(connect, 3000);
-      };
+      ws.onclose = () => { setTimeout(connect, 3000); };
 
-      // Keepalive ping
       const ping = setInterval(() => {
         if (ws.readyState === WebSocket.OPEN) ws.send('ping');
       }, 30000);
@@ -112,70 +133,103 @@ export default function AnomalyAlertPanel() {
 
   if (pendingFlags.length === 0 && resolvedFlags.length === 0) return null;
 
+  const recColor = (rec) => {
+    if (rec === 'discard') return { bg: 'bg-red-50 dark:bg-red-900/20', border: 'border-red-200 dark:border-red-800', text: 'text-red-600', btn: 'bg-red-600 hover:bg-red-700' };
+    if (rec === 'override') return { bg: 'bg-amber-50 dark:bg-amber-900/20', border: 'border-amber-200 dark:border-amber-800', text: 'text-amber-600', btn: 'bg-amber-600 hover:bg-amber-700' };
+    return { bg: 'bg-emerald-50 dark:bg-emerald-900/20', border: 'border-emerald-200 dark:border-emerald-800', text: 'text-emerald-600', btn: 'bg-emerald-600 hover:bg-emerald-700' };
+  };
+
   return (
     <div className="space-y-3">
-      {/* Pending flags */}
-      {pendingFlags.map((flag) => (
-        <div
-          key={flag.id}
-          className="bg-white dark:bg-stone-900 border border-red-200 dark:border-red-900/40 rounded-2xl p-5 space-y-4"
-        >
-          {/* Header */}
-          <div className="flex items-start gap-3">
-            <span className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1.5 animate-pulse flex-shrink-0" />
-            <div className="flex-1">
-              <p className="text-sm font-bold text-stone-900 dark:text-white">
-                Anomaly detected — <span className="text-red-600">{flag.teamName}</span> · {flag.judgeName}
-              </p>
-              <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
-                Score <strong className="text-stone-700 dark:text-stone-300">{flag.newScore?.toFixed(1)}</strong> vs panel average{' '}
-                <strong className="text-stone-700 dark:text-stone-300">{flag.panelAvg?.toFixed(1)}</strong> · Deviation{' '}
-                <strong className="text-red-600">+{flag.deviation?.toFixed(1)}</strong>
-              </p>
-            </div>
-          </div>
+      {pendingFlags.map((flag) => {
+        const rec = recommendations[flag.id];
+        const colors = rec ? recColor(rec.recommendation) : null;
 
-          {/* LLM explanation */}
-          {flag.llmExplanation && (
+        return (
+          <div
+            key={flag.id}
+            className="bg-white dark:bg-stone-900 border border-red-200 dark:border-red-900/40 rounded-2xl p-5 space-y-4"
+          >
+            {/* Header */}
+            <div className="flex items-start gap-3">
+              <span className="w-2.5 h-2.5 bg-red-500 rounded-full mt-1.5 animate-pulse flex-shrink-0" />
+              <div className="flex-1">
+                <p className="text-sm font-bold text-stone-900 dark:text-white">
+                  Anomaly detected — <span className="text-red-600">{flag.teamName}</span> · {flag.judgeName}
+                </p>
+                <p className="text-xs text-stone-500 dark:text-stone-400 mt-0.5">
+                  Score <strong className="text-stone-700 dark:text-stone-300">{flag.newScore?.toFixed(1)}</strong> vs panel average{' '}
+                  <strong className="text-stone-700 dark:text-stone-300">{flag.panelAvg?.toFixed(1)}</strong> · Deviation{' '}
+                  <strong className="text-red-600">+{flag.deviation?.toFixed(1)}</strong>
+                </p>
+              </div>
+            </div>
+
+            {/* AI Explanation */}
             <div className="bg-stone-50 dark:bg-stone-800/60 rounded-xl px-4 py-3">
               <p className="text-xs text-stone-600 dark:text-stone-400 leading-relaxed">
                 <span className="font-bold text-stone-800 dark:text-stone-300">AI Analysis: </span>
-                {flag.llmExplanation}
+                {recLoading[flag.id]
+                  ? 'Generating analysis...'
+                  : (rec?.explanation || flag.llmExplanation)}
               </p>
             </div>
-          )}
 
-          {/* Action buttons */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              id={`accept-${flag.id}`}
-              onClick={() => resolve(flag.id, 'accept')}
-              disabled={resolving[flag.id]}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 dark:bg-white text-white dark:text-stone-900 hover:opacity-90 disabled:opacity-50 transition-all"
-            >
-              {resolving[flag.id] ? 'Processing…' : 'Accept score'}
-            </button>
-            <button
-              id={`discard-${flag.id}`}
-              onClick={() => resolve(flag.id, 'discard')}
-              disabled={resolving[flag.id]}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-all"
-            >
-              Discard score
-            </button>
-            <button
-              id={`override-${flag.id}`}
-              onClick={() => { setOverrideModal(flag.id); setOverrideScore(''); }}
-              disabled={resolving[flag.id]}
-              className="px-4 py-2 rounded-xl text-xs font-bold border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 transition-all"
-            >
-              Override score
-            </button>
+            {/* AI Recommendation */}
+            {rec && !recLoading[flag.id] && (
+              <div className={`rounded-xl px-4 py-3 border ${colors.bg} ${colors.border}`}>
+                <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${colors.text}`}>
+                  AI Recommendation: {rec.recommendation}
+                </p>
+                <p className="text-xs text-stone-600 dark:text-stone-400">
+                  {rec.recommendation_reason}
+                </p>
+                <button
+                  onClick={() => {
+                    if (rec.recommendation === 'override') {
+                      setOverrideModal(flag.id);
+                      setOverrideScore('');
+                    } else {
+                      resolve(flag.id, rec.recommendation === 'discard' ? 'discard' : 'accept');
+                    }
+                  }}
+                  disabled={resolving[flag.id]}
+                  className={`mt-3 px-4 py-2 rounded-xl text-xs font-bold text-white disabled:opacity-50 transition-all ${colors.btn}`}
+                >
+                  {resolving[flag.id] ? 'Processing…' : `Apply — ${rec.recommendation}`}
+                </button>
+              </div>
+            )}
+
+            {/* Manual action buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                onClick={() => resolve(flag.id, 'accept')}
+                disabled={resolving[flag.id]}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-stone-900 dark:bg-white text-white dark:text-stone-900 hover:opacity-90 disabled:opacity-50 transition-all"
+              >
+                {resolving[flag.id] ? 'Processing…' : 'Accept score'}
+              </button>
+              <button
+                onClick={() => resolve(flag.id, 'discard')}
+                disabled={resolving[flag.id]}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition-all"
+              >
+                Discard score
+              </button>
+              <button
+                onClick={() => { setOverrideModal(flag.id); setOverrideScore(''); }}
+                disabled={resolving[flag.id]}
+                className="px-4 py-2 rounded-xl text-xs font-bold border border-stone-300 dark:border-stone-700 text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-800 disabled:opacity-50 transition-all"
+              >
+                Override score
+              </button>
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
 
-      {/* Resolved history (collapsible) */}
+      {/* Resolved history */}
       {resolvedFlags.length > 0 && (
         <div className="bg-white dark:bg-stone-900 border border-stone-200 dark:border-stone-800 rounded-2xl overflow-hidden">
           <button
@@ -208,7 +262,6 @@ export default function AnomalyAlertPanel() {
             <h3 className="text-base font-bold text-stone-900 dark:text-white">Override Score</h3>
             <p className="text-xs text-stone-500">Enter a manual score (1–10) for this judge+team combination.</p>
             <input
-              id="override-score-input"
               type="number"
               min={1}
               max={10}

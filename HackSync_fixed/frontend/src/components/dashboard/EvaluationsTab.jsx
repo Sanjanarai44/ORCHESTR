@@ -17,12 +17,10 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   const fetchData = async () => {
     if (!eventId) return;
     try {
-      // Get all published teams
       const teamsRes = await fetch(`${NODE}/api/admin/teams?status=ALL&eventId=${eventId}`);
       const teamsData = await teamsRes.json();
       const allTeams = teamsData.teams || [];
 
-      // Get scores for each team
       let totalScores = 0, sumScores = 0, teamsWithScores = 0;
       const teamsWithData = await Promise.all(allTeams.map(async (team) => {
         try {
@@ -46,7 +44,6 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
         average: teamsWithScores > 0 ? (sumScores / teamsWithScores).toFixed(2) : 0,
       });
 
-      // Collect anomalies
       const allAnomalies = teamsWithData.flatMap(t =>
         (t.anomalies || []).map(a => ({ ...a, team_name: t.name }))
       );
@@ -71,8 +68,8 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       setAnomalies(prev => prev.filter(a => a.id !== anomalyId));
       setSelectedAnomaly(null);
       setOverrideScore('');
-      fetchData(); // Refresh the table
-    } catch (err) {
+      fetchData();
+    } catch {
       alert('Failed to resolve anomaly');
     }
   };
@@ -83,14 +80,29 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       const res = await aiApi.explainAnomaly({
         team_name: anomaly.team_name,
         judge_name: anomaly.judge_name,
-        score: anomaly.score,
-        panel_average: anomaly.panel_average
+        judge_score: anomaly.score,
+        panel_average: anomaly.panel_average,
+        threshold: 2.0,
       });
-      setExplanations(prev => ({ ...prev, [anomaly.id]: res.explanation }));
-    } catch (err) {
-      setExplanations(prev => ({ ...prev, [anomaly.id]: 'Failed to generate explanation.' }));
+      // Save full response: explanation + recommendation + recommendation_reason
+      setExplanations(prev => ({ ...prev, [anomaly.id]: res }));
+    } catch {
+      setExplanations(prev => ({
+        ...prev,
+        [anomaly.id]: {
+          explanation: 'Failed to generate explanation.',
+          recommendation: 'accept',
+          recommendation_reason: 'Could not generate recommendation.',
+        }
+      }));
     }
     setExplaining(prev => ({ ...prev, [anomaly.id]: false }));
+  };
+
+  const recColors = (rec) => {
+    if (rec === 'discard') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', btn: 'bg-red-600 hover:bg-red-700 text-white' };
+    if (rec === 'override') return { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', btn: 'bg-amber-600 hover:bg-amber-700 text-white' };
+    return { bg: 'bg-emerald-50 border-emerald-200', text: 'text-emerald-700', btn: 'bg-emerald-600 hover:bg-emerald-700 text-white' };
   };
 
   if (loading) return (
@@ -130,55 +142,110 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
             <span className="material-symbols-outlined text-[18px]">warning</span>
             Score Anomalies ({anomalies.length})
           </h3>
-          <div className="space-y-2">
-            {anomalies.map((a, i) => (
-              <div key={i} className="flex flex-col gap-2">
-                <div className="bg-white dark:bg-stone-900 rounded-xl p-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-bold text-stone-900 dark:text-white">{a.team_name}</p>
-                    <p className="text-xs text-stone-500 mt-0.5">
-                      {a.judge_name} scored {a.score}/10 — panel avg {Number(a.panel_average || 0).toFixed(1)}/10
-                      <span className="ml-2 text-red-600 font-bold">(Δ {Number(a.delta || Math.abs(a.score - (a.panel_average || 0))).toFixed(1)} pts)</span>
-                    </p>
+          <div className="space-y-3">
+            {anomalies.map((a, i) => {
+              const exp = explanations[a.id];
+              const colors = exp ? recColors(exp.recommendation) : null;
+
+              return (
+                <div key={i} className="flex flex-col gap-2">
+                  {/* Anomaly row */}
+                  <div className="bg-white dark:bg-stone-900 rounded-xl p-4 flex items-center justify-between gap-4">
+                    <div>
+                      <p className="text-sm font-bold text-stone-900 dark:text-white">{a.team_name}</p>
+                      <p className="text-xs text-stone-500 mt-0.5">
+                        {a.judge_name} scored {a.score}/10 — panel avg {Number(a.panel_average || 0).toFixed(1)}/10
+                        <span className="ml-2 text-red-600 font-bold">(Δ {Number(a.delta || Math.abs(a.score - (a.panel_average || 0))).toFixed(1)} pts)</span>
+                      </p>
+                    </div>
+                    <div className="flex gap-2 items-center flex-wrap">
+                      {/* Explain button — only show if not yet explained */}
+                      {!exp && !a.llmExplanation && (
+                        <button
+                          onClick={() => handleExplain(a)}
+                          disabled={explaining[a.id]}
+                          className="text-xs font-bold px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 flex items-center gap-1 disabled:opacity-50"
+                        >
+                          <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                          {explaining[a.id] ? 'Analyzing...' : 'Explain (AI)'}
+                        </button>
+                      )}
+
+                      {/* Override input */}
+                      {selectedAnomaly === a.id ? (
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="number" min="0" max="10" step="0.5"
+                            value={overrideScore}
+                            onChange={e => setOverrideScore(e.target.value)}
+                            placeholder="New score"
+                            className="w-24 border border-stone-300 rounded-lg px-2 py-1 text-sm"
+                          />
+                          <button
+                            onClick={() => handleResolve(a.id, 'override')}
+                            className="text-xs font-bold px-3 py-1.5 bg-red-600 text-white rounded-lg"
+                          >
+                            Apply Override
+                          </button>
+                          <button
+                            onClick={() => setSelectedAnomaly(null)}
+                            className="text-xs font-bold px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300"
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <button onClick={() => handleResolve(a.id, 'accept')}
+                            className="text-xs font-bold px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200">
+                            Accept Score
+                          </button>
+                          <button onClick={() => handleResolve(a.id, 'decline')}
+                            className="text-xs font-bold px-3 py-1.5 bg-red-100 text-red-800 rounded-lg hover:bg-red-200">
+                            Decline Score
+                          </button>
+                          <button onClick={() => setSelectedAnomaly(a.id)}
+                            className="text-xs font-bold px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50">
+                            Override
+                          </button>
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex gap-2 items-center flex-wrap">
-                    {!explanations[a.id] && !a.llmExplanation && (
-                      <button onClick={() => handleExplain(a)} disabled={explaining[a.id]}
-                        className="text-xs font-bold px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 flex items-center gap-1 disabled:opacity-50">
-                        <span className="material-symbols-outlined text-[14px]">smart_toy</span>
-                        {explaining[a.id] ? 'Analyzing...' : 'Explain (AI)'}
+
+                  {/* AI Explanation */}
+                  {(exp || a.llmExplanation) && (
+                    <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-sm text-purple-900">
+                      <strong>AI Analysis:</strong> {exp?.explanation || a.llmExplanation}
+                    </div>
+                  )}
+
+                  {/* AI Recommendation */}
+                  {exp && (
+                    <div className={`rounded-xl px-4 py-3 border ${colors.bg}`}>
+                      <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${colors.text}`}>
+                        AI Recommendation: {exp.recommendation}
+                      </p>
+                      <p className="text-xs text-stone-600">
+                        {exp.recommendation_reason}
+                      </p>
+                      <button
+                        onClick={() => {
+                          if (exp.recommendation === 'override') {
+                            setSelectedAnomaly(a.id);
+                          } else {
+                            handleResolve(a.id, exp.recommendation === 'discard' ? 'decline' : 'accept');
+                          }
+                        }}
+                        className={`mt-3 px-4 py-2 rounded-xl text-xs font-bold disabled:opacity-50 transition-all ${colors.btn}`}
+                      >
+                        Apply — {exp.recommendation}
                       </button>
-                    )}
-                    {selectedAnomaly === a.id ? (
-                      <div className="flex items-center gap-2">
-                        <input type="number" min="0" max="10" step="0.5" value={overrideScore}
-                          onChange={e => setOverrideScore(e.target.value)}
-                          placeholder="New score"
-                          className="w-24 border border-stone-300 rounded-lg px-2 py-1 text-sm" />
-                        <button onClick={() => handleResolve(a.id, 'override')}
-                          className="text-xs font-bold px-3 py-1.5 bg-red-600 text-white rounded-lg">Apply Override</button>
-                        <button onClick={() => setSelectedAnomaly(null)}
-                          className="text-xs font-bold px-3 py-1.5 bg-stone-200 text-stone-700 rounded-lg hover:bg-stone-300">Cancel</button>
-                      </div>
-                    ) : (
-                      <>
-                        <button onClick={() => handleResolve(a.id, 'accept')}
-                          className="text-xs font-bold px-3 py-1.5 bg-emerald-100 text-emerald-800 rounded-lg hover:bg-emerald-200">Accept Score</button>
-                        <button onClick={() => handleResolve(a.id, 'decline')}
-                          className="text-xs font-bold px-3 py-1.5 bg-red-100 text-red-800 rounded-lg hover:bg-red-200">Decline Score</button>
-                        <button onClick={() => setSelectedAnomaly(a.id)}
-                          className="text-xs font-bold px-3 py-1.5 border border-red-300 text-red-700 rounded-lg hover:bg-red-50">Override</button>
-                      </>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-                {(explanations[a.id] || a.llmExplanation) && (
-                  <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-sm text-purple-900">
-                    <strong>AI Analysis:</strong> {explanations[a.id] || a.llmExplanation}
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
       )}

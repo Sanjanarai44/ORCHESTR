@@ -179,11 +179,41 @@ def explain_anomaly(data: dict):
     panel_average = data.get("panel_average", 5)
     threshold = data.get("threshold", 2.0)
     deviation = abs(judge_score - panel_average)
-    prompt = f"""A scoring anomaly was detected: Judge {judge_name} scored {judge_score}/10 for {team_name}, but the panel average is {panel_average:.1f}/10 (deviation: {deviation:.1f} pts, threshold: {threshold}).
-Write 2 sentences explaining the anomaly and what the committee should do. Be direct."""
-    result = call_llm(prompt, f"Judge {judge_name} scored significantly {'above' if judge_score > panel_average else 'below'} the panel average of {panel_average:.1f}/10. The committee should review this evaluation before publishing results.")
-    return {"explanation": result}
 
+    prompt = f"""A scoring anomaly was detected: Judge {judge_name} scored {judge_score}/10 for {team_name}, but the panel average is {panel_average:.1f}/10 (deviation: {deviation:.1f} pts, threshold: {threshold}).
+
+Return ONLY this JSON, no other text:
+{{
+  "explanation": "2 sentences explaining the anomaly",
+  "recommendation": "accept" or "discard" or "override",
+  "recommendation_reason": "1 sentence explaining why you recommend this action"
+}}
+
+Rules for recommendation:
+- "accept": deviation is borderline, score is plausible
+- "discard": judge is clearly too harsh or too lenient (deviation > 3)
+- "override": score needs manual adjustment (moderate deviation 2-3)"""
+
+    fallback = json.dumps({
+        "explanation": f"Judge {judge_name} scored significantly {'above' if judge_score > panel_average else 'below'} the panel average of {panel_average:.1f}/10. The committee should review this evaluation before publishing results.",
+        "recommendation": "discard" if deviation > 3 else "override" if deviation > 2 else "accept",
+        "recommendation_reason": "Deviation from panel average suggests this score may not reflect consensus judgment."
+    })
+
+    result = call_llm(prompt, fallback)
+
+    try:
+        # Strip markdown if LLM wraps in backticks
+        clean = result.strip()
+        if clean.startswith("```"):
+            clean = clean.split("```")[1]
+            if clean.startswith("json"):
+                clean = clean[4:]
+        parsed = json.loads(clean.strip())
+        return parsed
+    except:
+        return json.loads(fallback)
+    
 @app.post("/compatibility-summary")
 def compatibility_summary(data: dict):
     team_name = data.get("team_name", "Team")
@@ -372,4 +402,4 @@ async def update_ai_mentor_context(req: ContextRequest):
             )
             return res.json()
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": str(e)}
