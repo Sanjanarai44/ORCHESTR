@@ -147,6 +147,7 @@ function RulesPanel({ rules, onChange }) {
 // ── Main TeamsTab ─────────────────────────────────────────────────────────────
 export default function TeamsTab({ eventId }) {
   const [teams, setTeams] = useState([]);
+  const [selectedTeams, setSelectedTeams] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -154,7 +155,6 @@ export default function TeamsTab({ eventId }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [meta, setMeta] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
-  const [showRules, setShowRules] = useState(false);
 
   const [rules, setRules] = useState({
     teamSize: 3,
@@ -179,6 +179,7 @@ export default function TeamsTab({ eventId }) {
         targetStatus === "ALL" ? "" : targetStatus
       );
       setTeams(response.teams || []);
+      setSelectedTeams([]);
     } catch (e) {
       setError(e.message || "Failed to load teams");
     } finally {
@@ -249,6 +250,25 @@ export default function TeamsTab({ eventId }) {
     return teams.filter(t => t.status === statusFilter);
   }, [teams, statusFilter]);
 
+  const toggleTeamSelection = (teamId) => {
+  setSelectedTeams(prev =>
+    prev.includes(teamId)
+      ? prev.filter(id => id !== teamId)
+      : [...prev, teamId]
+  );
+};
+
+const toggleSelectAll = () => {
+  const draftIds = filteredTeams
+    .filter(team => team.status === "DRAFT")
+    .map(team => team.id);
+
+  if (selectedTeams.length === draftIds.length) {
+    setSelectedTeams([]);
+  } else {
+    setSelectedTeams(draftIds);
+  }
+};
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto text-stone-800">
 
@@ -409,18 +429,107 @@ export default function TeamsTab({ eventId }) {
           </p>
         </section>
       ) : (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+  <>
+    {filteredTeams.some(team => team.status === "DRAFT") && (
+      <div className="mb-4 flex flex-wrap items-center gap-3 bg-white border border-stone-200 rounded-2xl p-4">
+
+        <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+          <input
+            type="checkbox"
+            checked={
+              selectedTeams.length > 0 &&
+              selectedTeams.length ===
+                filteredTeams.filter(team => team.status === "DRAFT").length
+            }
+            onChange={toggleSelectAll}
+          />
+          Select All Draft Teams
+        </label>
+
+        {selectedTeams.length > 0 && (
+          <>
+            <span className="text-sm text-stone-500">
+              {selectedTeams.length} selected
+            </span>
+
+            <button
+              onClick={async () => {
+                try {
+                  setActionLoading(true);
+
+                  for (const teamId of selectedTeams) {
+                    await adminTeamsApi.approveTeam(teamId);
+                  }
+
+                  setSelectedTeams([]);
+                  await loadTeams(statusFilter);
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700"
+            >
+              Approve Selected
+            </button>
+
+            <button
+              onClick={async () => {
+                if (!window.confirm(`Delete ${selectedTeams.length} selected teams?`))
+                  return;
+
+                try {
+                  setActionLoading(true);
+
+                  for (const teamId of selectedTeams) {
+                    await adminTeamsApi.deleteTeam(teamId);
+                  }
+
+                  setSelectedTeams([]);
+                  await loadTeams(statusFilter);
+                } finally {
+                  setActionLoading(false);
+                }
+              }}
+              className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-200"
+            >
+              Delete Selected
+            </button>
+          </>
+        )}
+      </div>
+    )}
+
+    <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTeams.map(team => (
             <article key={team.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 space-y-4">
               <header className="flex items-start justify-between gap-3">
+              <div className="flex items-start gap-3">
+
+                {team.status === "DRAFT" && (
+                  <input
+                    type="checkbox"
+                    checked={selectedTeams.includes(team.id)}
+                    onChange={() => toggleTeamSelection(team.id)}
+                    className="mt-1 h-4 w-4"
+                  />
+                )}
+
                 <div>
-                  <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">{team.name}</p>
-                  <h3 className="text-base font-bold text-stone-900">{team.members?.length || 0} members</h3>
+                  <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+                    {team.name}
+                  </p>
+                  <h3 className="text-base font-bold text-stone-900">
+                    {team.members?.length || 0} members
+                  </h3>
                 </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(team.status)}`}>
-                  {team.status}
-                </span>
-              </header>
+              </div>
+
+              <span
+                className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(team.status)}`}
+              >
+                {team.status}
+              </span>
+            </header>
 
               <div className="space-y-2">
                 {(team.members || []).map(member => (
@@ -499,6 +608,7 @@ export default function TeamsTab({ eventId }) {
             
           ))}
         </section>
+        </>
       )}
     </div>
   );
