@@ -442,9 +442,61 @@ export default function TeamsTab({ eventId }) {
               </div>
 
               {team.rationale && (
-                <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">{team.rationale}</p>
+              <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">
+              {team.rationale}
+              </p>
+              )}
+
+              {team.status === "DRAFT" && (
+              <div className="flex gap-2 pt-3 border-t border-stone-200">
+              <button
+                onClick={async () => {
+                  try {
+                    setActionLoading(true);
+
+                    await adminTeamsApi.approveTeam(team.id);
+
+                    await loadTeams(statusFilter);
+
+                    setSuccess(`${team.name} approved`);
+                  } catch (err) {
+                    setError(err.message);
+                  } finally {
+                    setActionLoading(false);
+                  }
+                }}
+                className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500"
+              >
+                ✓ Approve
+              </button>
+
+              <button
+                onClick={async () => {
+                  if (!window.confirm(`Delete ${team.name}?`))
+                    return;
+
+                  try {
+                    setActionLoading(true);
+
+                    await adminTeamsApi.deleteTeam(team.id);
+
+                    await loadTeams(statusFilter);
+
+                    setSuccess(`${team.name} deleted`);
+                  } catch (err) {
+                    setError(err.message);
+                  } finally {
+                    setActionLoading(false);
+                  }
+                }}
+                className="flex-1 py-2 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200"
+              >
+                Delete
+              </button>
+              </div>
               )}
             </article>
+            
           ))}
         </section>
       )}

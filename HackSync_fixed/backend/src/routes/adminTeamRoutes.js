@@ -348,7 +348,39 @@ router.post("/generate-teams", async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to generate teams", error: error.message });
   }
 });
+router.patch("/teams/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
 
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "status required"
+      });
+    }
+
+    const updatedTeam = await prisma.team.update({
+      where: {
+        id: req.params.id
+      },
+      data: {
+        status
+      }
+    });
+
+    return res.json({
+      success: true,
+      team: updatedTeam
+    });
+  } catch (error) {
+    console.error("Status update failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update team status"
+    });
+  }
+});
 // POST /api/admin/approve-publish-teams
 router.post("/approve-publish-teams", async (req, res) => {
   try {
