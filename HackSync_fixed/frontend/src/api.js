@@ -177,7 +177,6 @@ export function useApi(apiFn, ...args) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedTeams, setSelectedTeams] = useState([]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -194,24 +193,5 @@ export function useApi(apiFn, ...args) {
   }, [JSON.stringify(args)]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
-  const toggleTeamSelection = (teamId) => {
-  setSelectedTeams(prev =>
-    prev.includes(teamId)
-      ? prev.filter(id => id !== teamId)
-      : [...prev, teamId]
-  );
-};
-
-const toggleSelectAll = () => {
-  const draftIds = filteredTeams
-    .filter(team => team.status === "DRAFT")
-    .map(team => team.id);
-
-  if (selectedTeams.length === draftIds.length) {
-    setSelectedTeams([]);
-  } else {
-    setSelectedTeams(draftIds);
-  }
-};
   return { data, loading, error, refetch: fetchData };
 }

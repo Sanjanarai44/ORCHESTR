@@ -155,6 +155,7 @@ export default function TeamsTab({ eventId }) {
   const [meta, setMeta] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [selectedTeams, setSelectedTeams] = useState([]);
 
   const [rules, setRules] = useState({
     teamSize: 3,
@@ -179,6 +180,7 @@ export default function TeamsTab({ eventId }) {
         targetStatus === "ALL" ? "" : targetStatus
       );
       setTeams(response.teams || []);
+      setSelectedTeams([]);
     } catch (e) {
       setError(e.message || "Failed to load teams");
     } finally {
@@ -249,6 +251,25 @@ export default function TeamsTab({ eventId }) {
     return teams.filter(t => t.status === statusFilter);
   }, [teams, statusFilter]);
 
+  const toggleTeamSelection = (teamId) => {
+  setSelectedTeams(prev =>
+    prev.includes(teamId)
+      ? prev.filter(id => id !== teamId)
+      : [...prev, teamId]
+  );
+};
+
+const toggleSelectAll = () => {
+  const draftIds = filteredTeams
+    .filter(team => team.status === "DRAFT")
+    .map(team => team.id);
+
+  if (selectedTeams.length === draftIds.length) {
+    setSelectedTeams([]);
+  } else {
+    setSelectedTeams(draftIds);
+  }
+};
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto text-stone-800">
 
