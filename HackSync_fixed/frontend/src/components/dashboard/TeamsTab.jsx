@@ -147,6 +147,7 @@ function RulesPanel({ rules, onChange }) {
 // ── Main TeamsTab ─────────────────────────────────────────────────────────────
 export default function TeamsTab({ eventId }) {
   const [teams, setTeams] = useState([]);
+  const [selectedTeams, setSelectedTeams] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -154,8 +155,6 @@ export default function TeamsTab({ eventId }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [meta, setMeta] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
-  const [showRules, setShowRules] = useState(false);
-  const [selectedTeams, setSelectedTeams] = useState([]);
 
   const [rules, setRules] = useState({
     teamSize: 3,
