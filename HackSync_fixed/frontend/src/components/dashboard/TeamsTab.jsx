@@ -155,6 +155,7 @@ export default function TeamsTab({ eventId }) {
   const [meta, setMeta] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
   const [showRules, setShowRules] = useState(false);
+  const [selectedTeams, setSelectedTeams] = useState([]);
 
   const [rules, setRules] = useState({
     teamSize: 3,
