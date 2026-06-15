@@ -381,6 +381,32 @@ router.patch("/teams/:id/status", async (req, res) => {
     });
   }
 });
+router.delete("/teams/:id", async (req, res) => {
+  try {
+    await prisma.teamMember.deleteMany({
+      where: {
+        teamId: req.params.id,
+      },
+    });
+
+    await prisma.team.delete({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    return res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error("Delete failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Delete failed",
+    });
+  }
+});
 // POST /api/admin/approve-publish-teams
 router.post("/approve-publish-teams", async (req, res) => {
   try {
