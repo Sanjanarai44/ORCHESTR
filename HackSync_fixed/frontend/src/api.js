@@ -69,6 +69,18 @@ export const adminTeamsApi = {
   approveAndPublish: (eventId) => nodeRequest('/api/admin/approve-publish-teams', {
     method: 'POST', body: JSON.stringify({ eventId }),
   }),
+  approveTeam: (teamId) =>
+  nodeRequest(`/api/admin/teams/${teamId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({
+      status: "PUBLISHED"
+    }),
+  }),
+
+deleteTeam: (teamId) =>
+  nodeRequest(`/api/admin/teams/${teamId}`, {
+    method: "DELETE",
+  }),
 };
 
 // ─── Teams alias (participant dashboard) ──────────────────────────────────────
