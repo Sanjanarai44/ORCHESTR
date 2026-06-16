@@ -529,22 +529,78 @@ router.get('/leaderboard', async (req, res) => {
       where: { status: 'PUBLISHED', eventId },
       include: { evaluations: true, members: true },
     });
+    const zscoreSetting = await prisma.eventSettings.findUnique({ where: { key: 'zscore_normalisation_enabled' }});
+    const useZscore = zscoreSetting?.value === 'true';
+
+    let judgeStats = {};
+    if (useZscore) {
+      const allEvals = await prisma.evaluation.findMany({ where: { discarded: false } });
+      const statsMap = {};
+      allEvals.forEach(e => {
+        if (!statsMap[e.judgeId]) statsMap[e.judgeId] = [];
+        const eff = e.overrideScore !== null ? e.overrideScore : (e.scoreCode + e.scoreInnovation + e.scorePresentaion) / 3;
+        statsMap[e.judgeId].push(eff);
+      });
+      for (const jid in statsMap) {
+        const scores = statsMap[jid];
+        const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+        let std = 0;
+        if (scores.length >= 2) {
+          const variance = scores.reduce((sq, n) => sq + Math.pow(n - mean, 2), 0) / (scores.length - 1);
+          std = Math.sqrt(variance);
+        }
+        judgeStats[jid] = { mean, stdDev: Math.max(std, 1.5) };
+      }
+    }
+
     const ranked = teams.map(t => {
-      const evals = t.evaluations || [];
+      const evals = t.evaluations ? t.evaluations.filter(e => !e.discarded) : [];
       const avgCode = evals.length ? evals.reduce((s, e) => s + (e.scoreCode || 0), 0) / evals.length : 0;
       const avgInno = evals.length ? evals.reduce((s, e) => s + (e.scoreInnovation || 0), 0) / evals.length : 0;
       const avgPres = evals.length ? evals.reduce((s, e) => s + (e.scorePresentaion || 0), 0) / evals.length : 0;
-      const total = (avgCode + avgInno + avgPres) / 3;
+      
+      let rawTotal = 0;
+      if (evals.length) {
+        rawTotal = evals.reduce((s, e) => {
+          if (e.overrideScore !== null) return s + e.overrideScore;
+          return s + (e.scoreCode + e.scoreInnovation + e.scorePresentaion) / 3;
+        }, 0) / evals.length;
+      } else {
+        rawTotal = (avgCode + avgInno + avgPres) / 3;
+      }
+
+      let normalisedTotal = null;
+      if (useZscore && evals.length) {
+        let normSum = 0;
+        evals.forEach(e => {
+          const eff = e.overrideScore !== null ? e.overrideScore : (e.scoreCode + e.scoreInnovation + e.scorePresentaion) / 3;
+          const stats = judgeStats[e.judgeId];
+          if (stats) {
+            const z = (eff - stats.mean) / stats.stdDev;
+            const norm = Math.max(1.0, Math.min(10.0, 5.5 + z * 1.5));
+            normSum += norm;
+          } else {
+            normSum += eff; // fallback
+          }
+        });
+        normalisedTotal = normSum / evals.length;
+      }
+
+      const sortScore = useZscore && normalisedTotal !== null ? normalisedTotal : rawTotal;
+
       return {
         id: t.id, name: t.name,
-        score: Math.round(total * 10) / 10,
+        score: Math.round(rawTotal * 10) / 10,
+        sortScore: Math.round(sortScore * 10) / 10,
+        normalisedTotal: normalisedTotal !== null ? Math.round(normalisedTotal * 10) / 10 : null,
         code: Math.round(avgCode * 10) / 10,
         innovation: Math.round(avgInno * 10) / 10,
         presentation: Math.round(avgPres * 10) / 10,
         judgeCount: evals.length,
         members: t.members.map(m => ({ name: m.name, skill: m.skill })),
       };
-    }).sort((a, b) => b.score - a.score);
+    }).sort((a, b) => b.sortScore - a.sortScore);
+
     return res.json({ success: true, leaderboard: ranked });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });

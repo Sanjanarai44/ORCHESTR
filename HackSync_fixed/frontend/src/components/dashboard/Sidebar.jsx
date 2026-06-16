@@ -10,6 +10,7 @@ export default function Sidebar({ activeTab, setActiveTab, eventConfig, organize
     { name: "Teams", icon: "diversity_3" },
     { name: "Judges", icon: "gavel" },
     { name: "Evaluations", icon: "analytics" },
+    { name: "Calibration", icon: "balance" },
     { name: "Emails", icon: "mail" },
   ];
 
