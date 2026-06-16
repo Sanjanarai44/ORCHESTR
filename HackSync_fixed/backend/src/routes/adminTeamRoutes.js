@@ -620,4 +620,162 @@ router.get('/pending-approvals', async (req, res) => {
     return res.json({ draftTeams, anomalies, total: draftTeams + anomalies });
   } catch { return res.json({ draftTeams: 0, anomalies: 0, total: 0 }); }
 });
+
+router.get('/workflow-status', async (req, res) => {
+  try {
+    const { eventId } = req.query;
+
+    if (!eventId) {
+      return res.status(400).json({
+        success: false,
+        message: "eventId is required"
+      });
+    }
+
+    const [
+      participantCount,
+      draftTeams,
+      publishedTeams,
+      evaluations,
+      judges,
+      eventConfig
+    ] = await Promise.all([
+      prisma.participant.count({ where: { eventId } }),
+      prisma.team.count({ where: { eventId, status: 'DRAFT' } }),
+      prisma.team.count({ where: { eventId, status: 'PUBLISHED' } }),
+      prisma.evaluation.findMany({
+        where: { team: { eventId } },
+        include: { team: true }
+      }),
+      prisma.judge.count({ where: { eventId } }),
+      prisma.event.findUnique({ where: { id: eventId } })
+    ]);
+
+    if (!eventConfig) {
+      return res.status(404).json({
+        success: false,
+        message: "Event not found"
+      });
+    }
+
+    let cfg = {};
+    try {
+      cfg =
+        typeof eventConfig.config === "string"
+          ? JSON.parse(eventConfig.config)
+          : eventConfig.config || {};
+    } catch (e) {
+      cfg = {};
+    }
+
+    const stages = cfg.stages || [
+      "Registration",
+      "Team Formation",
+      "Evaluation",
+      "Finals"
+    ];
+
+    const teamsEvaluated = new Set(
+      evaluations.map(e => e.teamId)
+    ).size;
+
+    const totalPublished = publishedTeams;
+
+    // -----------------------------
+    // STAGE LOGIC (CORE FIX)
+    // -----------------------------
+    let currentStageIndex = 0;
+
+    if (participantCount > 0) currentStageIndex = 1;
+    if (draftTeams > 0 || publishedTeams > 0) currentStageIndex = 2;
+    if (publishedTeams > 0 && teamsEvaluated > 0) currentStageIndex = 3;
+    if (totalPublished > 0 && teamsEvaluated >= totalPublished) {
+      currentStageIndex = stages.length - 1;
+    }
+
+    const workflowStages = [
+      {
+        key: "registration",
+        label: "Registration",
+        status: participantCount > 0 ? "completed" : "pending",
+        count: participantCount,
+        detail: `${participantCount} participants registered`
+      },
+      {
+        key: "team_formation",
+        label: "Team Formation",
+        status:
+          publishedTeams > 0
+            ? "completed"
+            : draftTeams > 0
+            ? "in_progress"
+            : "pending",
+        count: publishedTeams || draftTeams,
+        detail:
+          publishedTeams > 0
+            ? `${publishedTeams} teams published`
+            : draftTeams > 0
+            ? `${draftTeams} teams pending approval`
+            : "Not started"
+      },
+
+      // dynamic stages (safe)
+      ...stages.slice(1, -1).map((stage, i) => ({
+        key: `round_${i + 1}`,
+        label: stage,
+        status:
+          currentStageIndex > i + 2
+            ? "completed"
+            : currentStageIndex === i + 2
+            ? "in_progress"
+            : "pending",
+        count: null,
+        detail: stage
+      })),
+
+      {
+        key: "evaluation",
+        label: "Evaluation",
+        status:
+          totalPublished > 0 && teamsEvaluated >= totalPublished
+            ? "completed"
+            : teamsEvaluated > 0
+            ? "in_progress"
+            : "pending",
+        count: teamsEvaluated,
+        detail: `${teamsEvaluated}/${totalPublished} teams evaluated`
+      },
+      {
+        key: "finals",
+        label: "Finals",
+        status:
+          currentStageIndex >= stages.length - 1
+            ? "in_progress"
+            : "pending",
+        count: null,
+        detail: "Awaiting results"
+      }
+    ];
+
+    return res.json({
+      success: true,
+      currentStageIndex,
+      totalStages: workflowStages.length,
+      stages: workflowStages,
+      meta: {
+        participantCount,
+        draftTeams,
+        publishedTeams,
+        judges,
+        teamsEvaluated
+      }
+    });
+  } catch (err) {
+    console.error("workflow-status error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error"
+    });
+  }
+});
 export default router;
