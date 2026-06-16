@@ -7,6 +7,7 @@ import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
 import AIMentor from './AIMentor';
 import ParticipantLeaderboard from '../components/participant/ParticipantLeaderboard';
+import WorkflowTracker from '../components/shared/WorkflowTracker';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -274,6 +275,11 @@ console.log("PARTICIPANT STAGE:", participant.stage);
       </main>
     </div>
   );
+  <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
+  <WorkflowTracker eventId={eventConfig?.id || eventId} isAdmin={false} />  {/* ADD THIS */}
+  <SimpleStageTracker participant={participant} />
+  <EventJourney participant={participant} eventConfig={eventConfig} />
+</div>
   function SimpleStageTracker({ participant }) {
   const rawStage = participant?.stage || 'roster';
 const currentStage = STAGE_MAP[rawStage] || rawStage;

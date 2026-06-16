@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import AdminLayout from "../layouts/AdminLayout";
-import WorkflowTracker from "../components/dashboard/WorkflowTracker";
+import WorkflowTracker from "../components/shared/WorkflowTracker";
 import StatsGrid from "../components/dashboard/StatsGrid";
 import QuickActions from "../components/dashboard/QuickActions";
 import LeaderboardTable from "../components/dashboard/LeaderboardTable";
@@ -110,7 +110,7 @@ export default function AdminDashboard({ eventConfig, eventId, organizer, onBack
               onDismiss={() => setActiveTab("Teams")}
             />
           )}
-          <WorkflowTracker eventConfig={eventConfig} eventId={eventId} />
+          <WorkflowTracker eventId={eventId} isAdmin={true} />
           <StatsGrid key={refreshKey} eventConfig={eventConfig} eventId={eventId} />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-[24px]">
             <div className="lg:col-span-8 space-y-6">
