@@ -348,7 +348,65 @@ router.post("/generate-teams", async (req, res) => {
     return res.status(500).json({ success: false, message: "Failed to generate teams", error: error.message });
   }
 });
+router.patch("/teams/:id/status", async (req, res) => {
+  try {
+    const { status } = req.body;
 
+    if (!status) {
+      return res.status(400).json({
+        success: false,
+        message: "status required"
+      });
+    }
+
+    const updatedTeam = await prisma.team.update({
+      where: {
+        id: req.params.id
+      },
+      data: {
+        status
+      }
+    });
+
+    return res.json({
+      success: true,
+      team: updatedTeam
+    });
+  } catch (error) {
+    console.error("Status update failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update team status"
+    });
+  }
+});
+router.delete("/teams/:id", async (req, res) => {
+  try {
+    await prisma.teamMember.deleteMany({
+      where: {
+        teamId: req.params.id,
+      },
+    });
+
+    await prisma.team.delete({
+      where: {
+        id: req.params.id,
+      },
+    });
+
+    return res.json({
+      success: true,
+    });
+  } catch (error) {
+    console.error("Delete failed:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Delete failed",
+    });
+  }
+});
 // POST /api/admin/approve-publish-teams
 router.post("/approve-publish-teams", async (req, res) => {
   try {
@@ -617,5 +675,87 @@ router.get('/pending-approvals', async (req, res) => {
     const anomalies = await prisma.anomalyFlag.count({ where: { status: 'PENDING', eventId } });
     return res.json({ draftTeams, anomalies, total: draftTeams + anomalies });
   } catch { return res.json({ draftTeams: 0, anomalies: 0, total: 0 }); }
+});
+// GET /api/admin/workflow-status
+router.get('/workflow-status', async (req, res) => {
+  const { eventId } = req.query;
+  if (!eventId) return res.status(400).json({ success: false });
+
+  try {
+    const [
+      participantCount,
+      draftTeams,
+      publishedTeams,
+      evaluations,
+      judges,
+    ] = await Promise.all([
+      prisma.participant.count({ where: { eventId } }),
+      prisma.team.count({ where: { eventId, status: 'DRAFT' } }),
+      prisma.team.count({ where: { eventId, status: 'PUBLISHED' } }),
+      prisma.evaluation.findMany({
+        where: { team: { eventId } },
+        select: { teamId: true },
+      }),
+      prisma.judge.count({ where: { eventId } }),
+    ]);
+
+    const teamsEvaluated = new Set(evaluations.map(e => e.teamId)).size;
+
+    let currentStageIndex = 0;
+    if (participantCount > 0) currentStageIndex = 1;
+    if (publishedTeams > 0) currentStageIndex = 2;
+    if (teamsEvaluated > 0) currentStageIndex = 3;
+    if (teamsEvaluated >= publishedTeams && publishedTeams > 0) currentStageIndex = 4;
+
+    const workflowStages = [
+      {
+        key: 'registration',
+        label: 'Registration',
+        status: participantCount > 0 ? 'completed' : 'pending',
+        count: participantCount,
+        detail: `${participantCount} participants registered`,
+      },
+      {
+        key: 'team_formation',
+        label: 'Team Formation',
+        status: publishedTeams > 0 ? 'completed' : draftTeams > 0 ? 'in_progress' : 'pending',
+        count: publishedTeams || draftTeams,
+        detail: publishedTeams > 0
+          ? `${publishedTeams} teams published`
+          : draftTeams > 0
+          ? `${draftTeams} teams pending approval`
+          : 'Not started',
+      },
+      {
+        key: 'evaluation',
+        label: 'Evaluation',
+        status:
+          teamsEvaluated >= publishedTeams && publishedTeams > 0
+            ? 'completed'
+            : teamsEvaluated > 0
+            ? 'in_progress'
+            : 'pending',
+        count: teamsEvaluated,
+        detail: `${teamsEvaluated}/${publishedTeams} teams evaluated`,
+      },
+      {
+        key: 'finals',
+        label: 'Finals',
+        status: currentStageIndex >= 4 ? 'in_progress' : 'pending',
+        count: null,
+        detail: 'Awaiting results',
+      },
+    ];
+
+    return res.json({
+      success: true,
+      currentStageIndex,
+      totalStages: workflowStages.length,
+      stages: workflowStages,
+      meta: { participantCount, draftTeams, publishedTeams, judges, teamsEvaluated },
+    });
+  } catch (e) {
+    return res.status(500).json({ success: false, message: e.message });
+  }
 });
 export default router;

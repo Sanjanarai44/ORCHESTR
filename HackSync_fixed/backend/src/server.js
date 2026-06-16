@@ -11,6 +11,7 @@ import emailLogsRoutes from "./routes/emailLogsRoutes.js";
 import judgeAuthRoutes from "./routes/judgeAuthRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
+import participantRoutes from "./routes/participantRoutes.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation a
 app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progress
 app.use("/api/otp", otpRoutes);           // send and verify OTP
 app.use("/api/mentor", mentorRoutes);     // mentor data persistence
+app.use("/api/participants", participantRoutes);
 
 app.get("/", (req, res) => res.send("ORCHESTR Node Backend - Port 5000"));
 

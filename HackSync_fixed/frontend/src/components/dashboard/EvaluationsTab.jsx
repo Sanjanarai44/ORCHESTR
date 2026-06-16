@@ -98,6 +98,26 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
     }
     setExplaining(prev => ({ ...prev, [anomaly.id]: false }));
   };
+  const handlePublishAndQualify = async () => {
+  const qualifyingTeams = teams.filter(t => t.average >= 8);
+  if (qualifyingTeams.length === 0) {
+    alert('No teams meet the qualification threshold yet.');
+    return;
+  }
+  if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
+  
+  try {
+    for (const team of qualifyingTeams) {
+      await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
+    alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
+  } catch (err) {
+    alert('Error qualifying teams.');
+  }
+};
 
   const recColors = (rec) => {
     if (rec === 'discard') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', btn: 'bg-red-600 hover:bg-red-700 text-white' };
@@ -254,11 +274,18 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       <section className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/60 dark:border-stone-800 overflow-hidden">
         <div className="p-5 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
           <h3 className="font-bold text-stone-900 dark:text-white">Score Breakdown</h3>
-          <button onClick={fetchData} className="text-xs font-bold text-stone-500 hover:text-stone-900 flex items-center gap-1">
-            <span className="material-symbols-outlined text-[16px]">refresh</span> Refresh
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={handlePublishAndQualify}
+              className="text-xs font-bold px-4 py-2 bg-[#1B4332] text-white rounded-lg hover:opacity-90"
+            >
+              Publish Results & Qualify Teams
+            </button>
+            <button onClick={fetchData} className="text-xs font-bold text-stone-500 hover:text-stone-900 flex items-center gap-1">
+              <span className="material-symbols-outlined text-[16px]">refresh</span> Refresh
+            </button>
+          </div>
         </div>
-
         {teams.length === 0 ? (
           <div className="py-16 text-center">
             <span className="material-symbols-outlined text-stone-300 text-4xl block mb-2">analytics</span>

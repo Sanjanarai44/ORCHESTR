@@ -27,7 +27,6 @@ function RulesPanel({ rules, onChange }) {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-
         <div className="space-y-2">
           <label className="text-xs font-bold uppercase tracking-widest text-stone-500">Team Size</label>
           <select
@@ -147,6 +146,7 @@ function RulesPanel({ rules, onChange }) {
 // ── Main TeamsTab ─────────────────────────────────────────────────────────────
 export default function TeamsTab({ eventId }) {
   const [teams, setTeams] = useState([]);
+  const [selectedTeams, setSelectedTeams] = useState([]);
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -154,7 +154,7 @@ export default function TeamsTab({ eventId }) {
   const [actionLoading, setActionLoading] = useState(false);
   const [meta, setMeta] = useState(null);
   const [confirmApprove, setConfirmApprove] = useState(false);
-  const [showRules, setShowRules] = useState(false);
+  const [showRules, setShowRules] = useState(false); // ← THIS WAS MISSING
 
   const [rules, setRules] = useState({
     teamSize: 3,
@@ -173,12 +173,12 @@ export default function TeamsTab({ eventId }) {
     setLoading(true);
     setError("");
     try {
-      // FIXED: pass eventId
       const response = await adminTeamsApi.getAll(
         eventId,
         targetStatus === "ALL" ? "" : targetStatus
       );
       setTeams(response.teams || []);
+      setSelectedTeams([]);
     } catch (e) {
       setError(e.message || "Failed to load teams");
     } finally {
@@ -199,7 +199,6 @@ export default function TeamsTab({ eventId }) {
     setError("");
     setSuccess("");
     try {
-      // FIXED: pass eventId as first arg
       const response = await adminTeamsApi.generate(eventId, {
         teamSize: rules.teamSize,
         retryLimit: rules.retryLimit,
@@ -231,7 +230,6 @@ export default function TeamsTab({ eventId }) {
     setSuccess("");
     setConfirmApprove(false);
     try {
-      // FIXED: pass eventId
       const res = await adminTeamsApi.approveAndPublish(eventId);
       setStatusFilter("ALL");
       setMeta(null);
@@ -248,6 +246,25 @@ export default function TeamsTab({ eventId }) {
     if (statusFilter === "ALL") return teams;
     return teams.filter(t => t.status === statusFilter);
   }, [teams, statusFilter]);
+
+  const toggleTeamSelection = (teamId) => {
+    setSelectedTeams(prev =>
+      prev.includes(teamId)
+        ? prev.filter(id => id !== teamId)
+        : [...prev, teamId]
+    );
+  };
+
+  const toggleSelectAll = () => {
+    const draftIds = filteredTeams
+      .filter(team => team.status === "DRAFT")
+      .map(team => team.id);
+    if (selectedTeams.length === draftIds.length) {
+      setSelectedTeams([]);
+    } else {
+      setSelectedTeams(draftIds);
+    }
+  };
 
   return (
     <div className="space-y-6 max-w-[1440px] mx-auto text-stone-800">
@@ -301,7 +318,7 @@ export default function TeamsTab({ eventId }) {
                   : "bg-emerald-600 hover:bg-emerald-500 text-white"
               }`}
             >
-              {confirmApprove ? "⚠ Confirm Publish?" : `Approve & Publish (${draftTeams.length})`}
+              {confirmApprove ? "⚠ Confirm Publish?" : `Approve & Publish All (${draftTeams.length})`}
             </button>
           )}
           {confirmApprove && (
@@ -312,6 +329,7 @@ export default function TeamsTab({ eventId }) {
               Cancel
             </button>
           )}
+
           <button
             onClick={async () => {
               setActionLoading(true);
@@ -329,8 +347,10 @@ export default function TeamsTab({ eventId }) {
             disabled={actionLoading || publishedTeams.length === 0}
             className="flex items-center gap-2 h-10 px-4 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-sm font-semibold disabled:opacity-50 transition-all shadow-sm"
           >
-            {actionLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <span className="material-symbols-outlined text-[18px]">send</span>}
-            {actionLoading ? 'Sending...' : 'Send Participant Links'}
+            {actionLoading
+              ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+              : <span className="material-symbols-outlined text-[18px]">send</span>}
+            {actionLoading ? "Sending..." : "Send Participant Links"}
           </button>
         </div>
       </section>
@@ -409,44 +429,172 @@ export default function TeamsTab({ eventId }) {
           </p>
         </section>
       ) : (
-        <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTeams.map(team => (
-            <article key={team.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 space-y-4">
-              <header className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">{team.name}</p>
-                  <h3 className="text-base font-bold text-stone-900">{team.members?.length || 0} members</h3>
-                </div>
-                <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(team.status)}`}>
-                  {team.status}
-                </span>
-              </header>
+        <>
+          {filteredTeams.some(team => team.status === "DRAFT") && (
+            <div className="mb-4 flex flex-wrap items-center gap-3 bg-white border border-stone-200 rounded-2xl p-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-stone-700">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedTeams.length > 0 &&
+                    selectedTeams.length ===
+                      filteredTeams.filter(team => team.status === "DRAFT").length
+                  }
+                  onChange={toggleSelectAll}
+                />
+                Select All Draft Teams
+              </label>
 
-              <div className="space-y-2">
-                {(team.members || []).map(member => (
-                  <div key={member.id} className="rounded-xl border border-stone-100 px-3 py-2 flex items-center justify-between gap-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-700 shrink-0">
-                        {getInitials(member.name)}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="text-sm font-semibold text-stone-900 truncate">{member.name}</p>
-                        <p className="text-xs text-stone-500 truncate">{member.college || "—"}</p>
-                      </div>
-                    </div>
-                    <span className={`px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 ${SKILL_COLORS[member.skill] || "bg-stone-100 text-stone-700"}`}>
-                      {member.skill}
-                    </span>
-                  </div>
-                ))}
-              </div>
+              {selectedTeams.length > 0 && (
+                <>
+                  <span className="text-sm text-stone-500">{selectedTeams.length} selected</span>
 
-              {team.rationale && (
-                <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">{team.rationale}</p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        setActionLoading(true);
+                        for (const teamId of selectedTeams) {
+                          await adminTeamsApi.approveTeam(teamId);
+                        }
+                        setSelectedTeams([]);
+                        await loadTeams(statusFilter);
+                        setSuccess(`${selectedTeams.length} team(s) approved!`);
+                      } catch (e) {
+                        setError(e.message);
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    Approve Selected
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      if (!window.confirm(`Delete ${selectedTeams.length} selected teams?`)) return;
+                      try {
+                        setActionLoading(true);
+                        for (const teamId of selectedTeams) {
+                          await adminTeamsApi.deleteTeam(teamId);
+                        }
+                        setSelectedTeams([]);
+                        await loadTeams(statusFilter);
+                        setSuccess(`${selectedTeams.length} team(s) deleted.`);
+                      } catch (e) {
+                        setError(e.message);
+                      } finally {
+                        setActionLoading(false);
+                      }
+                    }}
+                    disabled={actionLoading}
+                    className="px-4 py-2 bg-red-100 text-red-700 rounded-xl text-sm font-semibold hover:bg-red-200 disabled:opacity-50"
+                  >
+                    Delete Selected
+                  </button>
+                </>
               )}
-            </article>
-          ))}
-        </section>
+            </div>
+          )}
+
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredTeams.map(team => (
+              <article key={team.id} className="bg-white rounded-2xl border border-stone-200/60 p-5 space-y-4">
+                <header className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    {team.status === "DRAFT" && (
+                      <input
+                        type="checkbox"
+                        checked={selectedTeams.includes(team.id)}
+                        onChange={() => toggleTeamSelection(team.id)}
+                        className="mt-1 h-4 w-4"
+                      />
+                    )}
+                    <div>
+                      <p className="text-[11px] font-bold tracking-wider text-stone-400 uppercase">
+                        {team.name}
+                      </p>
+                      <h3 className="text-base font-bold text-stone-900">
+                        {team.members?.length || 0} members
+                      </h3>
+                    </div>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-bold ${statusClass(team.status)}`}>
+                    {team.status}
+                  </span>
+                </header>
+
+                <div className="space-y-2">
+                  {(team.members || []).map(member => (
+                    <div key={member.id} className="rounded-xl border border-stone-100 px-3 py-2 flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-700 shrink-0">
+                          {getInitials(member.name)}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-stone-900 truncate">{member.name}</p>
+                          <p className="text-xs text-stone-500 truncate">{member.college || "—"}</p>
+                        </div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-md text-xs font-semibold shrink-0 ${SKILL_COLORS[member.skill] || "bg-stone-100 text-stone-700"}`}>
+                        {member.skill}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {team.rationale && (
+                  <p className="text-xs text-stone-500 italic leading-relaxed border-t pt-3">
+                    {team.rationale}
+                  </p>
+                )}
+
+                {team.status === "DRAFT" && (
+                  <div className="flex gap-2 pt-3 border-t border-stone-200">
+                    <button
+                      onClick={async () => {
+                        try {
+                          setActionLoading(true);
+                          await adminTeamsApi.approveTeam(team.id);
+                          await loadTeams(statusFilter);
+                          setSuccess(`${team.name} approved!`);
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                      disabled={actionLoading}
+                      className="flex-1 py-2 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-500 disabled:opacity-50"
+                    >
+                      ✓ Approve
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Delete ${team.name}?`)) return;
+                        try {
+                          setActionLoading(true);
+                          await adminTeamsApi.deleteTeam(team.id);
+                          await loadTeams(statusFilter);
+                          setSuccess(`${team.name} deleted.`);
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                      disabled={actionLoading}
+                      className="flex-1 py-2 rounded-xl bg-red-100 text-red-700 text-xs font-bold hover:bg-red-200 disabled:opacity-50"
+                    >
+                      ✗ Delete
+                    </button>
+                  </div>
+                )}
+              </article>
+            ))}
+          </section>
+        </>
       )}
     </div>
   );
