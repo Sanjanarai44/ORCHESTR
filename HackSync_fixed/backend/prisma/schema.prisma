@@ -28,6 +28,8 @@ model Participant {
   college   String
   skill     String
   stage     String   @default("roster")
+  qualified Boolean  @default(false)      
+  inviteStatus String   @default("NONE") 
   sessionNotes String? // Added for per-participant session notes
   createdAt DateTime @default(now())
   event     Event    @relation(fields: [eventId], references: [id])

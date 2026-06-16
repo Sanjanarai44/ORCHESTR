@@ -30,13 +30,13 @@ const STAGE_MAP = {
 // ── Main dashboard ───────────────────────────────────────────────────────────
 export default function ParticipantDashboard({ eventConfig, eventId, authenticatedParticipant }) {
   const [participant, setParticipant] = useState(authenticatedParticipant || {
-    id: 'demo-123',
-    name: 'Demo Participant',
-    email: 'demo@example.com',
-    college: 'Demo University',
-    skill: 'Frontend',
-    stage: 'roster'
-  });
+  id: 'demo-123',
+  name: 'Demo Participant',
+  email: 'demo@example.com',
+  college: 'Demo University',
+  skill: 'Frontend',
+  stage: 'roster',
+});
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showAIMentor, setShowAIMentor] = useState(false);
   const [countdown, setCountdown] = useState({ hours: 28, minutes: 44, seconds: 12 });
@@ -46,6 +46,20 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
 
   const [compatibilitySummary, setCompatibilitySummary] = useState('');
   const [compatibilityLoading, setCompatibilityLoading] = useState(false);
+  const [evaluator, setEvaluator] = useState(null);
+
+const handleInviteResponse = async (response) => {
+  try {
+    await fetch(`${NODE}/api/participants/${participant.id}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ response })
+    });
+    setParticipant(prev => ({ ...prev, inviteStatus: response }));
+  } catch (err) {
+    console.error('Response failed:', err);
+  }
+};
 
   const scrollContainerRef = useRef(null);
   const sectionRefs = {
@@ -232,7 +246,12 @@ console.log("PARTICIPANT STAGE:", participant.stage);
         ) : (
           <div className="px-16 py-2 space-y-12 pb-24">
             <div ref={sectionRefs.dashboard} id="dashboard" className="pt-4">
-              <WelcomeHero participant={participant} notifications={notifications} eventConfig={eventConfig} />
+              <WelcomeHero 
+  participant={participant} 
+  notifications={notifications} 
+  eventConfig={eventConfig}
+  onInviteResponse={handleInviteResponse}
+/>
             </div>
 
             <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
