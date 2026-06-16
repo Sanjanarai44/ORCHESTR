@@ -2,7 +2,9 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import './workers/emailWorker.js';
+import './workers/anomalyWorker.js';
 import uploadRoutes from "./routes/uploadRoutes.js";
+import calibrationRoutes from "./routes/calibrationRoutes.js";
 import adminTeamRoutes from "./routes/adminTeamRoutes.js";
 import adminJudgesRoutes from "./routes/adminJudgesRoutes.js";
 import emailLogsRoutes from "./routes/emailLogsRoutes.js";
@@ -22,6 +24,7 @@ app.use("/api/admin", uploadRoutes);      // participants + CSV upload
 app.use("/api/admin", adminTeamRoutes);   // teams + generate + approve + stages + activity + scores
 app.use("/api/admin", adminJudgesRoutes); // judges CRUD + send links + assign
 app.use("/api/admin/emails", emailLogsRoutes);
+app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation and anomaly checks
 app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progress
 app.use("/api/otp", otpRoutes);           // send and verify OTP
 app.use("/api/mentor", mentorRoutes);     // mentor data persistence
