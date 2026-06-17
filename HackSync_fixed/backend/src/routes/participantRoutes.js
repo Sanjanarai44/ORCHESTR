@@ -71,5 +71,16 @@ router.post("/qualify-team/:teamId", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+router.get("/event-status/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const qualifiedCount = await prisma.participant.count({
+      where: { eventId, qualified: true }
+    });
+    res.json({ resultsPublished: qualifiedCount > 0 });
+  } catch (err) {
+    res.status(500).json({ resultsPublished: false });
+  }
+});
 
 export default router;

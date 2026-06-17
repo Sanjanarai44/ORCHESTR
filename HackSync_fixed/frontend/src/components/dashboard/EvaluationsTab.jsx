@@ -99,6 +99,10 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
     setExplaining(prev => ({ ...prev, [anomaly.id]: false }));
   };
   const handlePublishAndQualify = async () => {
+  if (anomalies.length > 0) {
+    alert('Resolve all score anomalies before publishing results.');
+    return;
+  }
   const qualifyingTeams = teams.filter(t => t.average >= 8);
   if (qualifyingTeams.length === 0) {
     alert('No teams meet the qualification threshold yet.');
