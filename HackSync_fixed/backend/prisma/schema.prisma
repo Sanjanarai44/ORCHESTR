@@ -12,45 +12,47 @@ model Event {
   name         String
   eventType    String        @default("hackathon")
   status       String        @default("active")
-  config       String        // JSON string of full event config
+  config       String
   organizerId  String
   createdAt    DateTime      @default(now())
+  judges       Judge[]
   participants Participant[]
   teams        Team[]
-  judges       Judge[]
 }
 
 model Participant {
-  id        String   @id @default(cuid())
-  eventId   String
-  name      String
-  email     String
-  college   String
-  skill     String
-  stage     String   @default("roster")
-  sessionNotes String? // Added for per-participant session notes
-  createdAt DateTime @default(now())
-  event     Event    @relation(fields: [eventId], references: [id])
+  id                  String               @id @default(cuid())
+  eventId             String
+  name                String
+  email               String
+  college             String
+  skill               String
+  stage               String               @default("roster")
+  createdAt           DateTime             @default(now())
+  sessionNotes        String?
+  inviteStatus        String               @default("NONE")
+  qualified           Boolean              @default(false)
   mentorConversations MentorConversation[]
+  event               Event                @relation(fields: [eventId], references: [id])
 
   @@unique([eventId, email])
 }
 
 model Team {
-  id                String              @id @default(cuid())
-  eventId           String
-  name              String
-  status            String              @default("DRAFT")
-  aiRationale       String?
-  problemStatement  String?
-  evaluationGuide   String?
-  resultsHeld       Boolean             @default(false)
-  createdAt         DateTime            @default(now())
-  event             Event               @relation(fields: [eventId], references: [id])
-  members           TeamMember[]
-  evaluations       Evaluation[]
-  anomalyFlags      AnomalyFlag[]
-  mentorMessages    MentorConversation[]
+  id               String               @id @default(cuid())
+  eventId          String
+  name             String
+  status           String               @default("DRAFT")
+  aiRationale      String?
+  problemStatement String?
+  evaluationGuide  String?
+  resultsHeld      Boolean              @default(false)
+  createdAt        DateTime             @default(now())
+  anomalyFlags     AnomalyFlag[]
+  evaluations      Evaluation[]
+  mentorMessages   MentorConversation[]
+  event            Event                @relation(fields: [eventId], references: [id])
+  members          TeamMember[]
 }
 
 model TeamMember {
@@ -64,35 +66,35 @@ model TeamMember {
 }
 
 model Judge {
-  id             String       @id @default(cuid())
-  eventId        String
-  email          String
-  name           String
-  jwtToken       String?
-  tokenUsed      Boolean      @default(false)
-  assignedTeams  String       @default("[]")
-  createdAt      DateTime     @default(now())
-  event          Event        @relation(fields: [eventId], references: [id])
-  evaluations    Evaluation[]
-  anomalyFlags   AnomalyFlag[]
+  id            String        @id @default(cuid())
+  eventId       String
+  email         String
+  name          String
+  jwtToken      String?
+  tokenUsed     Boolean       @default(false)
+  assignedTeams String        @default("[]")
+  createdAt     DateTime      @default(now())
+  anomalyFlags  AnomalyFlag[]
+  evaluations   Evaluation[]
+  event         Event         @relation(fields: [eventId], references: [id])
 
   @@unique([eventId, email])
 }
 
 model Evaluation {
-  id                String    @id @default(cuid())
-  judgeId           String
-  teamId            String
-  scoreCode         Int
-  scoreInnovation   Int
-  scorePresentaion  Int
-  starRating        Int       @default(0)
-  comment           String
-  discarded         Boolean   @default(false)
-  overrideScore     Float?
-  submittedAt       DateTime  @default(now())
-  judge             Judge     @relation(fields: [judgeId], references: [id])
-  team              Team      @relation(fields: [teamId], references: [id])
+  id               String   @id @default(cuid())
+  judgeId          String
+  teamId           String
+  scoreCode        Int
+  scoreInnovation  Int
+  scorePresentaion Int
+  starRating       Int      @default(0)
+  comment          String
+  discarded        Boolean  @default(false)
+  overrideScore    Float?
+  submittedAt      DateTime @default(now())
+  judge            Judge    @relation(fields: [judgeId], references: [id])
+  team             Team     @relation(fields: [teamId], references: [id])
 
   @@unique([judgeId, teamId])
 }
@@ -108,8 +110,8 @@ model AnomalyFlag {
   status         String   @default("PENDING")
   resolution     String?
   createdAt      DateTime @default(now())
-  team           Team     @relation(fields: [teamId], references: [id])
   judge          Judge    @relation(fields: [judgeId], references: [id])
+  team           Team     @relation(fields: [teamId], references: [id])
 }
 
 model EmailLog {
@@ -129,12 +131,12 @@ model EmailLog {
 model MentorConversation {
   id            String       @id @default(cuid())
   teamId        String
-  participantId String?
   role          String
   content       String
   timestamp     DateTime     @default(now())
-  team          Team         @relation(fields: [teamId], references: [id])
+  participantId String?
   participant   Participant? @relation(fields: [participantId], references: [id])
+  team          Team         @relation(fields: [teamId], references: [id])
 }
 
 model EventSettings {
@@ -158,4 +160,15 @@ model OtpCode {
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+model Organizer {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String?
+  authProvider String   @default("email") // 'email' | 'google' | 'github'
+  providerId   String?
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
