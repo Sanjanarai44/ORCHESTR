@@ -97,9 +97,10 @@ const anomalyWorker = new Worker(
       return { success: true };
 
     } else if (taskName === 'run_post_normalisation_anomaly_check') {
+      const { eventId } = data;
       
       const allEvals = await prisma.evaluation.findMany({
-        where: { discarded: false },
+        where: { discarded: false, team: { eventId } },
         include: { judge: true, team: true }
       });
 
@@ -147,7 +148,7 @@ const anomalyWorker = new Worker(
       }
 
       // 3. Check for anomalies
-      const thresholdSetting = await prisma.eventSettings.findUnique({ where: { key: 'anomaly_threshold' }});
+      const thresholdSetting = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_anomaly_threshold` }});
       const threshold = thresholdSetting ? parseFloat(thresholdSetting.value) : 2.5;
 
       let flagsCreated = 0;
@@ -213,8 +214,8 @@ const anomalyWorker = new Worker(
         : `Last checked at ${timestamp}: 0 anomalies found.`;
 
       await prisma.eventSettings.upsert({
-        where: { key: 'last_anomaly_check_result' },
-        create: { key: 'last_anomaly_check_result', value: msg },
+        where: { key: `${eventId}_last_anomaly_check_result` },
+        create: { key: `${eventId}_last_anomaly_check_result`, value: msg },
         update: { value: msg }
       });
 

@@ -5,9 +5,9 @@ import { anomalyQueue } from '../queues/anomalyQueue.js';
 const router = express.Router();
 
 // Helper to compute stats
-async function getEvaluationsAndJudgeStats() {
+async function getEvaluationsAndJudgeStats(eventId) {
   const allEvals = await prisma.evaluation.findMany({
-    where: { discarded: false },
+    where: { discarded: false, team: { eventId } },
     include: { judge: true, team: true }
   });
 
@@ -58,12 +58,15 @@ async function getEvaluationsAndJudgeStats() {
 // ENDPOINT 1: GET /api/admin/calibration/judge-calibration-report
 router.get('/judge-calibration-report', async (req, res) => {
   try {
-    const { judgeStats, globalAvg, globalCount } = await getEvaluationsAndJudgeStats();
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
 
-    const zscoreSetting = await prisma.eventSettings.findUnique({ where: { key: 'zscore_normalisation_enabled' }});
+    const { judgeStats, globalAvg, globalCount } = await getEvaluationsAndJudgeStats(eventId);
+
+    const zscoreSetting = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_zscore_normalisation_enabled` }});
     const zScoreNormalisationEnabled = zscoreSetting?.value === 'true';
 
-    const judgeList = await prisma.judge.findMany();
+    const judgeList = await prisma.judge.findMany({ where: { eventId } });
     const judges = [];
 
     for (const judge of judgeList) {
@@ -104,7 +107,7 @@ router.get('/judge-calibration-report', async (req, res) => {
       });
     }
 
-    const lastCheckObj = await prisma.eventSettings.findUnique({ where: { key: 'last_anomaly_check_result' }});
+    const lastCheckObj = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_last_anomaly_check_result` }});
 
     return res.json({
       success: true,
@@ -125,14 +128,18 @@ router.get('/judge-calibration-report', async (req, res) => {
 // ENDPOINT 2: POST /api/admin/calibration/judge-calibration-report/generate-summaries
 router.post('/judge-calibration-report/generate-summaries', async (req, res) => {
   try {
-    const { judgeStats, globalAvg } = await getEvaluationsAndJudgeStats();
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
+
+    const { judgeStats, globalAvg } = await getEvaluationsAndJudgeStats(eventId);
     let triggered = 0;
 
     for (const jid in judgeStats) {
       await anomalyQueue.add('generate_calibration_summary', {
         taskName: 'generate_calibration_summary',
         judgeId: jid,
-        global_avg: globalAvg
+        global_avg: globalAvg,
+        eventId
       });
       triggered++;
     }
@@ -147,10 +154,12 @@ router.post('/judge-calibration-report/generate-summaries', async (req, res) => 
 // ENDPOINT 3: POST /api/admin/calibration/settings/zscore-normalisation
 router.post('/settings/zscore-normalisation', async (req, res) => {
   try {
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
     const { enabled } = req.body;
     await prisma.eventSettings.upsert({
-      where: { key: 'zscore_normalisation_enabled' },
-      create: { key: 'zscore_normalisation_enabled', value: enabled ? 'true' : 'false' },
+      where: { key: `${eventId}_zscore_normalisation_enabled` },
+      create: { key: `${eventId}_zscore_normalisation_enabled`, value: enabled ? 'true' : 'false' },
       update: { value: enabled ? 'true' : 'false' }
     });
     return res.json({ success: true, zScoreNormalisationEnabled: Boolean(enabled) });
@@ -162,7 +171,9 @@ router.post('/settings/zscore-normalisation', async (req, res) => {
 // ENDPOINT 4: GET /api/admin/calibration/settings/zscore-normalisation
 router.get('/settings/zscore-normalisation', async (req, res) => {
   try {
-    const setting = await prisma.eventSettings.findUnique({ where: { key: 'zscore_normalisation_enabled' }});
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
+    const setting = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_zscore_normalisation_enabled` }});
     return res.json({ success: true, zScoreNormalisationEnabled: setting?.value === 'true' });
   } catch (error) {
     return res.status(500).json({ success: false, detail: error.message });
@@ -172,10 +183,12 @@ router.get('/settings/zscore-normalisation', async (req, res) => {
 // ENDPOINT 4.1: POST /api/admin/calibration/settings/anomaly-threshold
 router.post('/settings/anomaly-threshold', async (req, res) => {
   try {
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
     const { threshold } = req.body;
     await prisma.eventSettings.upsert({
-      where: { key: 'anomaly_threshold' },
-      create: { key: 'anomaly_threshold', value: String(threshold) },
+      where: { key: `${eventId}_anomaly_threshold` },
+      create: { key: `${eventId}_anomaly_threshold`, value: String(threshold) },
       update: { value: String(threshold) }
     });
     return res.json({ success: true, anomalyThreshold: Number(threshold) });
@@ -187,7 +200,9 @@ router.post('/settings/anomaly-threshold', async (req, res) => {
 // ENDPOINT 4.2: GET /api/admin/calibration/settings/anomaly-threshold
 router.get('/settings/anomaly-threshold', async (req, res) => {
   try {
-    const setting = await prisma.eventSettings.findUnique({ where: { key: 'anomaly_threshold' }});
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
+    const setting = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_anomaly_threshold` }});
     return res.json({ success: true, anomalyThreshold: setting ? parseFloat(setting.value) : 2.0 });
   } catch (error) {
     return res.status(500).json({ success: false, detail: error.message });
@@ -197,9 +212,11 @@ router.get('/settings/anomaly-threshold', async (req, res) => {
 // ENDPOINT 5: GET /api/admin/calibration/leaderboard/comparison
 router.get('/leaderboard/comparison', async (req, res) => {
   try {
-    const { allEvals, judgeStats } = await getEvaluationsAndJudgeStats();
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
+    const { allEvals, judgeStats } = await getEvaluationsAndJudgeStats(eventId);
     
-    const teams = await prisma.team.findMany({ where: { status: 'PUBLISHED' }});
+    const teams = await prisma.team.findMany({ where: { eventId, status: 'PUBLISHED' }});
     
     // RAW Leaderboard
     const rawScores = {};
@@ -279,8 +296,11 @@ router.get('/leaderboard/comparison', async (req, res) => {
 // ENDPOINT 6: POST /api/admin/calibration/run-post-normalisation-check
 router.post('/run-post-normalisation-check', async (req, res) => {
   try {
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
     await anomalyQueue.add('run_post_normalisation_anomaly_check', {
-      taskName: 'run_post_normalisation_anomaly_check'
+      taskName: 'run_post_normalisation_anomaly_check',
+      eventId
     });
     return res.json({ success: true, triggered: true, message: 'Post-normalisation check queued successfully.' });
   } catch (error) {

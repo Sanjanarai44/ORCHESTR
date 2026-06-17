@@ -429,7 +429,7 @@ router.post("/approve-publish-teams", async (req, res) => {
       await prisma.emailLog.create({
         data: {
           jobId: `approval_${Date.now()}`,
-          recipientId: "system",
+          recipientId: `system_${eventId}`,
           recipientEmail: "system@internal",
           recipientName: "System",
           emailType: "team_approval",

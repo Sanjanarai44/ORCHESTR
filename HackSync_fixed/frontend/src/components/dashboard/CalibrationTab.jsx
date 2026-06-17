@@ -16,18 +16,18 @@ export default function CalibrationTab({ eventConfig, eventId }) {
     if (!eventId) return;
     try {
       if (!silent) setLoading(true);
-      const res = await fetch(`${NODE_URL}/api/admin/calibration/judge-calibration-report`);
+      const res = await fetch(`${NODE_URL}/api/admin/calibration/judge-calibration-report?eventId=${eventId}`);
       const json = await res.json();
       if (json.success) {
         setData(json);
         setZscoreEnabled(json.zScoreNormalisationEnabled);
       }
       
-      const threshRes = await fetch(`${NODE_URL}/api/admin/calibration/settings/anomaly-threshold`);
+      const threshRes = await fetch(`${NODE_URL}/api/admin/calibration/settings/anomaly-threshold?eventId=${eventId}`);
       const threshJson = await threshRes.json();
       if (threshJson.success) setAnomalyThreshold(threshJson.anomalyThreshold);
 
-      const lbRes = await fetch(`${NODE_URL}/api/admin/calibration/leaderboard/comparison`);
+      const lbRes = await fetch(`${NODE_URL}/api/admin/calibration/leaderboard/comparison?eventId=${eventId}`);
       const lbJson = await lbRes.json();
       if (lbJson.success) {
         setLeaderboardData(lbJson);
@@ -55,7 +55,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
     if (isNaN(num)) return;
     setAnomalyThreshold(num);
     try {
-      await fetch(`${NODE_URL}/api/admin/calibration/settings/anomaly-threshold`, {
+      await fetch(`${NODE_URL}/api/admin/calibration/settings/anomaly-threshold?eventId=${eventId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ threshold: num })
@@ -69,7 +69,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
     const newVal = !zscoreEnabled;
     try {
       setZscoreEnabled(newVal);
-      await fetch(`${NODE_URL}/api/admin/calibration/settings/zscore-normalisation`, {
+      await fetch(`${NODE_URL}/api/admin/calibration/settings/zscore-normalisation?eventId=${eventId}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ enabled: newVal })
@@ -84,7 +84,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
   const handleGenerateSummaries = async () => {
     setIsGenerating(true);
     try {
-      const res = await fetch(`${NODE_URL}/api/admin/calibration/judge-calibration-report/generate-summaries`, {
+      const res = await fetch(`${NODE_URL}/api/admin/calibration/judge-calibration-report/generate-summaries?eventId=${eventId}`, {
         method: 'POST'
       });
       const json = await res.json();
@@ -98,7 +98,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
   const handlePostNormalisationCheck = async () => {
     setIsChecking(true);
     try {
-      const res = await fetch(`${NODE_URL}/api/admin/calibration/run-post-normalisation-check`, {
+      const res = await fetch(`${NODE_URL}/api/admin/calibration/run-post-normalisation-check?eventId=${eventId}`, {
         method: 'POST'
       });
       const json = await res.json();
@@ -205,7 +205,14 @@ export default function CalibrationTab({ eventConfig, eventId }) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {data.judges.map(j => (
+            {data.judges.length === 0 ? (
+              <div className="col-span-1 md:col-span-2 py-12 text-center bg-stone-50 dark:bg-stone-900/50 rounded-2xl border border-stone-200/60 dark:border-stone-800">
+                <span className="material-symbols-outlined text-4xl text-stone-300 dark:text-stone-700 mb-2 block">gavel</span>
+                <p className="text-stone-500 dark:text-stone-400 font-medium">No evaluations have been submitted yet.</p>
+                <p className="text-sm text-stone-400 dark:text-stone-500 mt-1">Judge bias reports will appear here once scoring begins.</p>
+              </div>
+            ) : (
+              data.judges.map(j => (
               <div key={j.judgeId} className="bg-white dark:bg-stone-900 p-5 rounded-2xl border border-stone-200/60 dark:border-stone-800 flex flex-col gap-4">
                 <div className="flex justify-between items-start">
                   <div className="flex items-center gap-3">
@@ -243,7 +250,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
                   {j.anomalyCount > 0 && <span className="text-amber-600 flex items-center gap-1"><span className="material-symbols-outlined text-[14px]">warning</span> {j.anomalyCount} Flags</span>}
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </section>
       )}
@@ -269,7 +276,14 @@ export default function CalibrationTab({ eventConfig, eventId }) {
           )}
 
           <div className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/60 dark:border-stone-800 overflow-hidden">
-            <div className="overflow-x-auto">
+            {leaderboardData.rawLeaderboard.length === 0 || data.totalEvaluations === 0 ? (
+              <div className="py-12 text-center bg-stone-50 dark:bg-stone-900/50">
+                <span className="material-symbols-outlined text-4xl text-stone-300 dark:text-stone-700 mb-2 block">leaderboard</span>
+                <p className="text-stone-500 dark:text-stone-400 font-medium">No leaderboard data available.</p>
+                <p className="text-sm text-stone-400 dark:text-stone-500 mt-1">Teams and their rankings will appear here once evaluations begin.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
                 <thead>
                   <tr className="bg-stone-50 dark:bg-stone-900 border-b border-stone-200/60 dark:border-stone-800">
@@ -313,6 +327,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         </section>
       )}
