@@ -1,5 +1,5 @@
-console.log("Google ID:", process.env.GOOGLE_CLIENT_ID);
-console.log("Backend URL:", process.env.BACKEND_URL);
+console.log("GOOGLE_CLIENT_ID =", process.env.GOOGLE_CLIENT_ID);
+console.log("GOOGLE_CLIENT_SECRET =", process.env.GOOGLE_CLIENT_SECRET ? "FOUND" : "MISSING");
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";

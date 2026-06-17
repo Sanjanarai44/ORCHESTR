@@ -26,7 +26,9 @@ function publicOrganizer(org) {
     avatarUrl: org.avatarUrl || null,
   };
 }
-
+router.get("/auth/test", (req, res) => {
+  res.send("Auth routes working");
+});
 // ─── Email + password ──────────────────────────────────────────────
 router.post('/auth/register', async (req, res) => {
   try {
