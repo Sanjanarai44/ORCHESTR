@@ -224,6 +224,8 @@ const handleInviteResponse = async (response) => {
     );
   }
 console.log("PARTICIPANT OBJECT:", participant);
+console.log("EVENT CONFIG:", eventConfig);
+console.log("EVENT ID prop:", eventId);
 console.log("PARTICIPANT ID:", participant.id);
 console.log("PARTICIPANT STAGE:", participant.stage);
   return (
@@ -267,7 +269,7 @@ console.log("PARTICIPANT STAGE:", participant.stage);
   compatibilitySummary={compatibilitySummary}
   compatibilityLoading={compatibilityLoading}
   onOpenAIMentor={() => setShowAIMentor(true)}
-  leaderboard={<ParticipantLeaderboard eventId={eventConfig?.id || eventId || 1} currentTeamId={team?.id} />}
+  leaderboard={<ParticipantLeaderboard eventId={participant?.eventId || eventConfig?.id || eventId} currentTeamId={team?.id} />}
 />
             </div>
           </div>
@@ -275,11 +277,6 @@ console.log("PARTICIPANT STAGE:", participant.stage);
       </main>
     </div>
   );
-  <div ref={sectionRefs.timeline} id="timeline" className="scroll-mt-6 space-y-10">
-  <WorkflowTracker eventId={eventConfig?.id || eventId} isAdmin={false} />  {/* ADD THIS */}
-  <SimpleStageTracker participant={participant} />
-  <EventJourney participant={participant} eventConfig={eventConfig} />
-</div>
   function SimpleStageTracker({ participant }) {
   const rawStage = participant?.stage || 'roster';
 const currentStage = STAGE_MAP[rawStage] || rawStage;
