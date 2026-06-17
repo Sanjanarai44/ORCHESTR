@@ -399,6 +399,46 @@ class ContextRequest(BaseModel):
     participant_id: Optional[str] = None
     problem_description: str = None
     session_notes: str = None
+@app.post("/ai-assistant")
+def ai_assistant(data: dict):
+    question = data.get("question", "")
+    participant = data.get("participant", {})
+    history = data.get("history", [])   # 👈 add this
+
+    if not question:
+        return {"reply": "Please ask a question."}
+
+    stage = participant.get("stage", "unknown")
+    name = participant.get("name", "participant")
+
+    messages = [
+        {
+            "role": "system",
+            "content": f"""
+You are an AI Event Assistant for a hackathon dashboard.
+
+User:
+- Name: {name}
+- Stage: {stage}
+
+Be concise (2–4 lines max).
+"""
+        }
+    ]
+
+    # 👇 inject chat history (future-proofing)
+    for msg in history[-6:]:
+        messages.append(msg)
+
+    messages.append({"role": "user", "content": question})
+
+    response = client.chat.completions.create(
+        model="openai/gpt-4o-mini",
+        messages=messages
+    )
+
+    reply = response.choices[0].message.content
+    return {"reply": reply}
 
 @app.get("/ai-mentor/init")
 async def ai_mentor_init(event_id: str, team_id: str, participant_id: Optional[str] = None):
