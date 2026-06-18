@@ -12,7 +12,7 @@ import judgeAuthRoutes from "./routes/judgeAuthRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
 import participantRoutes from "./routes/participantRoutes.js";
-
+import githubRoutes from "./routes/github.routes.js";
 dotenv.config();
 
 const app = express();
@@ -29,6 +29,7 @@ app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progres
 app.use("/api/otp", otpRoutes);           // send and verify OTP
 app.use("/api/mentor", mentorRoutes);     // mentor data persistence
 app.use("/api/participants", participantRoutes);
+app.use("/api/github", githubRoutes);
 
 app.get("/", (req, res) => res.send("ORCHESTR Node Backend - Port 5000"));
 

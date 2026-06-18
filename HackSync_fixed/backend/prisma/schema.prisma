@@ -55,6 +55,8 @@ model Team {
   mentorMessages   MentorConversation[]
   event            Event                @relation(fields: [eventId], references: [id])
   members          TeamMember[]
+  githubRepoUrl    String?
+  githubRepo    GithubRepo?
 }
 
 model TeamMember {
@@ -167,12 +169,14 @@ model OtpCode {
 model GithubRepo {
   id        String   @id @default(cuid())
   eventId   String
+  teamId    String?  @unique
   repoUrl   String
   owner     String
   repoName  String
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id])
+  team  Team? @relation(fields: [teamId], references: [id])
 
   analyses GithubAnalysis[]
 }

@@ -13,6 +13,8 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   const [stats, setStats] = useState({ total: 0, pending: 0, finalized: 0, average: 0 });
   const [explanations, setExplanations] = useState({});
   const [explaining, setExplaining] = useState({});
+  const [contributions, setContributions] = useState({});
+  const [analyzingContrib, setAnalyzingContrib] = useState({});
 
   const fetchData = async () => {
     if (!eventId) return;
@@ -48,6 +50,19 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
         (t.anomalies || []).map(a => ({ ...a, team_name: t.name }))
       );
       setAnomalies(allAnomalies);
+
+      // Pull any previously-saved contribution leaderboards (read-only, no GitHub calls)
+      const contribMap = {};
+      await Promise.all(teamsWithData.map(async (team) => {
+        try {
+          const res = await fetch(`${NODE}/api/github/team/${team.id}/leaderboard`);
+          const data = await res.json();
+          if (data.success) contribMap[team.id] = data;
+        } catch {
+          // No saved data yet — fine, button will show instead
+        }
+      }));
+      setContributions(contribMap);
     } catch (err) {
       console.error('EvaluationsTab fetch error:', err);
     } finally {
@@ -56,6 +71,26 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
   };
 
   useEffect(() => { if (eventId) fetchData(); }, [eventId]);
+
+  const handleAnalyzeContrib = async (teamId) => {
+    setAnalyzingContrib(prev => ({ ...prev, [teamId]: true }));
+    try {
+      const res = await fetch(`${NODE}/api/github/analyze/team/${teamId}`, { method: 'POST' });
+      const data = await res.json();
+      if (data.success) {
+        setContributions(prev => ({
+          ...prev,
+          [teamId]: { success: true, connected: true, leaderboard: data.leaderboard },
+        }));
+      } else {
+        alert(data.message || 'Could not analyze contributions for this team.');
+      }
+    } catch {
+      alert('Failed to analyze contributions.');
+    } finally {
+      setAnalyzingContrib(prev => ({ ...prev, [teamId]: false }));
+    }
+  };
 
   const handleResolve = async (anomalyId, action) => {
     try {
@@ -84,7 +119,6 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
         panel_average: anomaly.panel_average,
         threshold: 2.0,
       });
-      // Save full response: explanation + recommendation + recommendation_reason
       setExplanations(prev => ({ ...prev, [anomaly.id]: res }));
     } catch {
       setExplanations(prev => ({
@@ -98,30 +132,31 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
     }
     setExplaining(prev => ({ ...prev, [anomaly.id]: false }));
   };
+
   const handlePublishAndQualify = async () => {
-  if (anomalies.length > 0) {
-    alert('Resolve all score anomalies before publishing results.');
-    return;
-  }
-  const qualifyingTeams = teams.filter(t => t.average >= 8);
-  if (qualifyingTeams.length === 0) {
-    alert('No teams meet the qualification threshold yet.');
-    return;
-  }
-  if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
-  
-  try {
-    for (const team of qualifyingTeams) {
-      await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
+    if (anomalies.length > 0) {
+      alert('Resolve all score anomalies before publishing results.');
+      return;
     }
-    alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
-  } catch (err) {
-    alert('Error qualifying teams.');
-  }
-};
+    const qualifyingTeams = teams.filter(t => t.average >= 8);
+    if (qualifyingTeams.length === 0) {
+      alert('No teams meet the qualification threshold yet.');
+      return;
+    }
+    if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
+
+    try {
+      for (const team of qualifyingTeams) {
+        await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+      }
+      alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
+    } catch (err) {
+      alert('Error qualifying teams.');
+    }
+  };
 
   const recColors = (rec) => {
     if (rec === 'discard') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', btn: 'bg-red-600 hover:bg-red-700 text-white' };
@@ -173,7 +208,6 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
 
               return (
                 <div key={i} className="flex flex-col gap-2">
-                  {/* Anomaly row */}
                   <div className="bg-white dark:bg-stone-900 rounded-xl p-4 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-bold text-stone-900 dark:text-white">{a.team_name}</p>
@@ -183,7 +217,6 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                       </p>
                     </div>
                     <div className="flex gap-2 items-center flex-wrap">
-                      {/* Explain button — only show if not yet explained */}
                       {!exp && !a.llmExplanation && (
                         <button
                           onClick={() => handleExplain(a)}
@@ -195,7 +228,6 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                         </button>
                       )}
 
-                      {/* Override input */}
                       {selectedAnomaly === a.id ? (
                         <div className="flex items-center gap-2">
                           <input
@@ -237,14 +269,12 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                     </div>
                   </div>
 
-                  {/* AI Explanation */}
                   {(exp || a.llmExplanation) && (
                     <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-sm text-purple-900">
                       <strong>AI Analysis:</strong> {exp?.explanation || a.llmExplanation}
                     </div>
                   )}
 
-                  {/* AI Recommendation */}
                   {exp && (
                     <div className={`rounded-xl px-4 py-3 border ${colors.bg}`}>
                       <p className={`text-xs font-bold uppercase tracking-wider mb-1 ${colors.text}`}>
@@ -306,34 +336,68 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                   <th className="px-5 py-3 text-left">Status</th>
                   <th className="px-5 py-3 text-left">Avg Score</th>
                   <th className="px-5 py-3 text-left">Evaluations</th>
+                  <th className="px-5 py-3 text-left">Contributions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800">
-                {teams.sort((a, b) => b.average - a.average).map((team, i) => (
-                  <tr key={team.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
-                    <td className="px-5 py-4">
-                      <div className="flex items-center gap-2">
-                        <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-stone-700 text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
-                        <span className="font-bold text-sm text-stone-900 dark:text-white">{team.name}</span>
-                        {(team.anomalies || []).length > 0 && <span className="material-symbols-outlined text-red-500 text-[14px]">warning</span>}
-                      </div>
-                    </td>
-                    <td className="px-5 py-4 text-xs text-stone-500">
-                      {(team.members || []).map(m => m.name).join(', ') || '—'}
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                        team.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
-                      }`}>{team.status}</span>
-                    </td>
-                    <td className="px-5 py-4 font-bold text-stone-900 dark:text-white">
-                      {team.average > 0 ? `${Number(team.average).toFixed(1)}/10` : '—'}
-                    </td>
-                    <td className="px-5 py-4 text-xs text-stone-500">
-                      {(team.scores || []).length} judge{(team.scores || []).length !== 1 ? 's' : ''} scored
-                    </td>
-                  </tr>
-                ))}
+                {teams.sort((a, b) => b.average - a.average).map((team, i) => {
+                  const contrib = contributions[team.id];
+                  const flagged = contrib?.leaderboard?.some(u => u.status !== 'Normal');
+
+                  return (
+                    <tr key={team.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
+                      <td className="px-5 py-4">
+                        <div className="flex items-center gap-2">
+                          <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-stone-700 text-white text-[10px] font-bold flex items-center justify-center">{i + 1}</span>
+                          <span className="font-bold text-sm text-stone-900 dark:text-white">{team.name}</span>
+                          {(team.anomalies || []).length > 0 && <span className="material-symbols-outlined text-red-500 text-[14px]">warning</span>}
+                        </div>
+                      </td>
+                      <td className="px-5 py-4 text-xs text-stone-500">
+                        {(team.members || []).map(m => m.name).join(', ') || '—'}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                          team.status === 'PUBLISHED' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'
+                        }`}>{team.status}</span>
+                      </td>
+                      <td className="px-5 py-4 font-bold text-stone-900 dark:text-white">
+                        {team.average > 0 ? `${Number(team.average).toFixed(1)}/10` : '—'}
+                      </td>
+                      <td className="px-5 py-4 text-xs text-stone-500">
+                        {(team.scores || []).length} judge{(team.scores || []).length !== 1 ? 's' : ''} scored
+                      </td>
+                      <td className="px-5 py-4">
+                        {!team.githubRepoUrl ? (
+                          <span className="text-xs text-stone-400">No repo linked</span>
+                        ) : !contrib?.connected || !contrib.leaderboard?.length ? (
+                          <button
+                            onClick={() => handleAnalyzeContrib(team.id)}
+                            disabled={analyzingContrib[team.id]}
+                            className="text-xs font-bold px-3 py-1.5 border border-stone-300 text-stone-700 rounded-lg hover:bg-stone-50 disabled:opacity-50"
+                          >
+                            {analyzingContrib[team.id] ? 'Analyzing...' : 'Analyze Contributions'}
+                          </button>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs text-stone-600">
+                              {contrib.leaderboard.slice(0, 3).map(u => `${u.username} ${u.percentage}%`).join(' · ')}
+                            </span>
+                            {flagged && <span className="text-amber-600 font-bold text-xs">⚠</span>}
+                            <button
+                              onClick={() => handleAnalyzeContrib(team.id)}
+                              disabled={analyzingContrib[team.id]}
+                              title="Re-analyze"
+                              className="text-stone-400 hover:text-stone-700 disabled:opacity-50"
+                            >
+                              <span className="material-symbols-outlined text-[14px]">refresh</span>
+                            </button>
+                          </div>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

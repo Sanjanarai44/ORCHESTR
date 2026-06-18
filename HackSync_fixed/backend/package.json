@@ -16,6 +16,7 @@
   "dependencies": {
     "@prisma/client": "^5.22.0",
     "@sendgrid/mail": "^8.1.6",
+    "axios": "^1.18.0",
     "bullmq": "^5.77.3",
     "cors": "^2.8.6",
     "csv-parser": "^3.2.1",

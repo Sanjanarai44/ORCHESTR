@@ -225,8 +225,13 @@ function mapTeamResponse(team) {
     skill: m.skill || "",
   }));
   return {
-    id: team.id, name: team.name, status: team.status,
-    rationale: team.aiRationale, createdAt: team.createdAt, members,
+    id: team.id,
+    name: team.name,
+    status: team.status,
+    rationale: team.aiRationale,
+    createdAt: team.createdAt,
+    githubRepoUrl: team.githubRepoUrl ?? null,   // ← this was the missing line
+    members,
   };
 }
 
