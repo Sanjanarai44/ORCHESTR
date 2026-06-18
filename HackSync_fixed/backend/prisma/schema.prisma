@@ -18,20 +18,6 @@ model Event {
   judges       Judge[]
   participants Participant[]
   teams        Team[]
-}
-
-model Participant {
-  id                  String               @id @default(cuid())
-  eventId             String
-  name                String
-  email               String
-  college             String
-  skill               String
-  stage               String               @default("roster")
-  createdAt           DateTime             @default(now())
-  sessionNotes        String?
-  inviteStatus        String               @default("NONE")
-  qualified           Boolean              @default(false)
   githubRepos  GithubRepo[]
 }
 
@@ -50,10 +36,10 @@ model Participant {
 
   event               Event                @relation(fields: [eventId], references: [id])
   mentorConversations MentorConversation[]
-  event               Event                @relation(fields: [eventId], references: [id])
 
   @@unique([eventId, email])
 }
+
 
 model Team {
   id               String               @id @default(cuid())
