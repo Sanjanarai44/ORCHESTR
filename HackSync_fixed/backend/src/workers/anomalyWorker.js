@@ -211,7 +211,7 @@ const anomalyWorker = new Worker(
       const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
       const msg = flagsCreated > 0 
         ? `Last checked at ${timestamp}: Found ${flagsCreated} new anomalies.` 
-        : `Last checked at ${timestamp}: 0 anomalies found.`;
+        : `Last checked at ${timestamp}: 0 new anomalies found.`;
 
       await prisma.eventSettings.upsert({
         where: { key: `${eventId}_last_anomaly_check_result` },

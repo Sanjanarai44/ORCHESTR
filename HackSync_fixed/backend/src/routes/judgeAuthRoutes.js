@@ -162,18 +162,46 @@ router.post('/evaluate', async (req, res) => {
     });
 
     // Anomaly detection
-    const allEvals = await prisma.evaluation.findMany({ where: { teamId } });
-    if (allEvals.length >= 3) {
-      const avg = allEvals.reduce((s, e) => s + e.scoreCode, 0) / allEvals.length;
-      const deviation = Math.abs(Number(scoreCode) - avg);
+    const allEvals = await prisma.evaluation.findMany({ where: { teamId, discarded: false } });
+    
+    // Calculate how many judges are assigned to this team
+    const eventJudges = await prisma.judge.findMany({ where: { eventId: judge.eventId } });
+    let assignedJudgeCount = 0;
+    for (const j of eventJudges) {
+      try {
+        const teams = JSON.parse(j.assignedTeams || '[]');
+        if (teams.includes(teamId)) assignedJudgeCount++;
+      } catch (e) {}
+    }
+    
+    const requiredCount = assignedJudgeCount > 0 ? assignedJudgeCount : 3;
+
+    // Check anomalies only if all assigned judges have submitted, and we have at least 3 evaluations
+    if (allEvals.length >= requiredCount && allEvals.length >= 3) {
+      const getEff = (e) => e.overrideScore !== null ? e.overrideScore : (e.scoreCode + e.scoreInnovation + e.scorePresentaion) / 3;
+      const avg = allEvals.reduce((s, e) => s + getEff(e), 0) / allEvals.length;
       
-      const thresholdSetting = await prisma.eventSettings.findUnique({ where: { key: 'anomaly_threshold' }});
+      const thresholdSetting = await prisma.eventSettings.findUnique({ where: { key: `${judge.eventId}_anomaly_threshold` }});
       const threshold = thresholdSetting ? parseFloat(thresholdSetting.value) : 2.0;
 
-      if (deviation > threshold) {
-        await prisma.anomalyFlag.create({
-          data: { teamId, judgeId: judge.id, newScore: Number(scoreCode), panelAvg: avg, deviation, status: 'PENDING' },
-        });
+      for (const e of allEvals) {
+        const currentEff = getEff(e);
+        const deviation = Math.abs(currentEff - avg);
+
+        if (deviation > threshold) {
+          const existing = await prisma.anomalyFlag.findFirst({
+            where: { teamId, judgeId: e.judgeId, status: 'PENDING' }
+          });
+          if (!existing) {
+            await prisma.anomalyFlag.create({
+              data: { teamId, judgeId: e.judgeId, newScore: currentEff, panelAvg: avg, deviation, status: 'PENDING' },
+            });
+            await prisma.team.update({
+              where: { id: teamId },
+              data: { resultsHeld: true }
+            });
+          }
+        }
       }
     }
 

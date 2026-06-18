@@ -21,18 +21,23 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       const teamsData = await teamsRes.json();
       const allTeams = teamsData.teams || [];
 
+      const lbRes = await fetch(`${NODE}/api/admin/leaderboard?eventId=${eventId}`);
+      const lbData = await lbRes.json();
+      const lbMap = {};
+      (lbData.leaderboard || []).forEach(t => { lbMap[t.id] = t.sortScore; });
+
       let totalScores = 0, sumScores = 0, teamsWithScores = 0;
       const teamsWithData = await Promise.all(allTeams.map(async (team) => {
         try {
           const scoreRes = await fetch(`${NODE}/api/admin/scores/${team.id}`);
           const scoreData = await scoreRes.json();
           const scores = scoreData.scores || [];
-          const avg = scoreData.average || 0;
+          const avg = lbMap[team.id] !== undefined ? lbMap[team.id] : (scoreData.average || 0);
           totalScores += scores.length;
           if (scores.length > 0) { sumScores += avg; teamsWithScores++; }
           return { ...team, scores, average: avg, anomalies: scoreData.anomalies || [] };
         } catch {
-          return { ...team, scores: [], average: 0, anomalies: [] };
+          return { ...team, scores: [], average: lbMap[team.id] || 0, anomalies: [] };
         }
       }));
 
@@ -179,17 +184,15 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                       </p>
                     </div>
                     <div className="flex gap-2 items-center flex-wrap">
-                      {/* Explain button — only show if not yet explained */}
-                      {!exp && !a.llmExplanation && (
-                        <button
-                          onClick={() => handleExplain(a)}
-                          disabled={explaining[a.id]}
-                          className="text-xs font-bold px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 flex items-center gap-1 disabled:opacity-50"
-                        >
-                          <span className="material-symbols-outlined text-[14px]">smart_toy</span>
-                          {explaining[a.id] ? 'Analyzing...' : 'Explain (AI)'}
-                        </button>
-                      )}
+                      {/* Explain button — always visible */}
+                      <button
+                        onClick={() => handleExplain(a)}
+                        disabled={explaining[a.id]}
+                        className="text-xs font-bold px-3 py-1.5 border border-purple-300 text-purple-700 rounded-lg hover:bg-purple-50 flex items-center gap-1 disabled:opacity-50"
+                      >
+                        <span className="material-symbols-outlined text-[14px]">smart_toy</span>
+                        {explaining[a.id] ? 'Analyzing...' : 'Explain (AI)'}
+                      </button>
 
                       {/* Override input */}
                       {selectedAnomaly === a.id ? (
@@ -234,9 +237,9 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                   </div>
 
                   {/* AI Explanation */}
-                  {(exp || a.llmExplanation) && (
+                  {exp && (
                     <div className="bg-purple-50 border border-purple-100 rounded-lg p-3 text-sm text-purple-900">
-                      <strong>AI Analysis:</strong> {exp?.explanation || a.llmExplanation}
+                      <strong>AI Analysis:</strong> {exp.explanation}
                     </div>
                   )}
 

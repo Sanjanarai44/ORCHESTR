@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { teamsApi, scoresApi } from "../../api";
+import { leaderboardApi } from "../../api";
  
 export default function LeaderboardTable({ eventConfig, eventId = 1 }) {
   const [rows, setRows] = useState([]);
@@ -10,38 +10,24 @@ export default function LeaderboardTable({ eventConfig, eventId = 1 }) {
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await teamsApi.getAll(eventId);
-        const teams = res?.teams || [];
-        const withScores = await Promise.all(
-          teams.map(async (team, i) => {
-            try {
-              const s = await scoresApi.getByTeam(team.id);
-              return {
-                rank: i + 1,
-                name: team.name,
-                members: (team.members || []).map((m) => m.name).join(", "),
-                average: s.average ? Number(s.average).toFixed(1) : "—",
-                hasAnomaly: (s.anomalies || []).length > 0,
-                status: s.average >= 8 ? "Qualifies" : s.average >= 5 ? "Reviewed" : "Pending",
-              };
-            } catch {
-              return { rank: i + 1, name: team.name, members: "", average: "—", hasAnomaly: false, status: "Pending" };
-            }
-          })
-        );
-        // Sort by average desc
-        withScores.sort((a, b) => {
-          const av = parseFloat(a.average) || 0;
-          const bv = parseFloat(b.average) || 0;
-          return bv - av;
+        const res = await leaderboardApi.get(eventId);
+        const teams = res?.leaderboard || [];
+        const formatted = teams.map((team, i) => {
+          return {
+            rank: i + 1,
+            name: team.name,
+            members: (team.members || []).map((m) => m.name).join(", "),
+            average: team.sortScore ? Number(team.sortScore).toFixed(1) : "0.0",
+            hasAnomaly: team.hasAnomaly || false,
+            status: team.sortScore >= 8 ? "Qualifies" : team.sortScore >= 5 ? "Reviewed" : "Pending",
+          };
         });
-        withScores.forEach((r, i) => { r.rank = i + 1; });
-        setRows(withScores);
+        setRows(formatted);
       } catch {}
       setLoading(false);
     };
     load();
-  }, []);
+  }, [eventId]);
  
   return (
     <div className="bg-white rounded-xl shadow-sm border border-[#1B4332]/10 overflow-hidden">

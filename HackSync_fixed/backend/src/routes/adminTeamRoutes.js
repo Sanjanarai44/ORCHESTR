@@ -425,18 +425,6 @@ router.post("/approve-publish-teams", async (req, res) => {
       where: { eventId, stage: "roster" },
       data: { stage: "development" },
     });
-    try {
-      await prisma.emailLog.create({
-        data: {
-          jobId: `approval_${Date.now()}`,
-          recipientId: `system_${eventId}`,
-          recipientEmail: "system@internal",
-          recipientName: "System",
-          emailType: "team_approval",
-          status: "COMPLETED",
-        },
-      });
-    } catch {}
     return res.json({ success: true, message: `${updated.count} teams published`, publishedCount: updated.count });
   } catch (error) {
     console.error('[Approve Publish Teams Error]', error);
@@ -571,6 +559,18 @@ router.post('/anomalies/:id/:action', async (req, res) => {
       data: { status: 'RESOLVED', resolution },
     });
 
+    // Unlock the team if no other anomalies are pending
+    const pendingCount = await prisma.anomalyFlag.count({
+      where: { teamId: anomaly.teamId, status: 'PENDING' }
+    });
+    
+    if (pendingCount === 0) {
+      await prisma.team.update({
+        where: { id: anomaly.teamId },
+        data: { resultsHeld: false }
+      });
+    }
+
     return res.json({ success: true, resolution });
   } catch (err) {
     return res.status(500).json({ success: false, message: err.message });
@@ -585,14 +585,14 @@ router.get('/leaderboard', async (req, res) => {
 
     const teams = await prisma.team.findMany({
       where: { status: 'PUBLISHED', eventId },
-      include: { evaluations: true, members: true },
+      include: { evaluations: true, members: true, anomalyFlags: { where: { status: 'PENDING' } } },
     });
-    const zscoreSetting = await prisma.eventSettings.findUnique({ where: { key: 'zscore_normalisation_enabled' }});
+    const zscoreSetting = await prisma.eventSettings.findUnique({ where: { key: `${eventId}_zscore_normalisation_enabled` }});
     const useZscore = zscoreSetting?.value === 'true';
 
     let judgeStats = {};
     if (useZscore) {
-      const allEvals = await prisma.evaluation.findMany({ where: { discarded: false } });
+      const allEvals = await prisma.evaluation.findMany({ where: { discarded: false, team: { eventId } } });
       const statsMap = {};
       allEvals.forEach(e => {
         if (!statsMap[e.judgeId]) statsMap[e.judgeId] = [];
@@ -656,6 +656,7 @@ router.get('/leaderboard', async (req, res) => {
         presentation: Math.round(avgPres * 10) / 10,
         judgeCount: evals.length,
         members: t.members.map(m => ({ name: m.name, skill: m.skill })),
+        hasAnomaly: (t.anomalyFlags || []).length > 0,
       };
     }).sort((a, b) => b.sortScore - a.sortScore);
 

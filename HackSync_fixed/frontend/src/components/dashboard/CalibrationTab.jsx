@@ -50,10 +50,13 @@ export default function CalibrationTab({ eventConfig, eventId }) {
     return () => clearInterval(intervalId);
   }, [eventId]);
 
-  const handleUpdateThreshold = async (val) => {
-    const num = parseFloat(val);
+  const handleThresholdChange = (e) => {
+    setAnomalyThreshold(e.target.value);
+  };
+
+  const handleThresholdBlur = async () => {
+    const num = parseFloat(anomalyThreshold);
     if (isNaN(num)) return;
-    setAnomalyThreshold(num);
     try {
       await fetch(`${NODE_URL}/api/admin/calibration/settings/anomaly-threshold?eventId=${eventId}`, {
         method: 'POST',
@@ -130,7 +133,8 @@ export default function CalibrationTab({ eventConfig, eventId }) {
               min="0.5" 
               max="5.0"
               value={anomalyThreshold}
-              onChange={(e) => handleUpdateThreshold(e.target.value)}
+              onChange={handleThresholdChange}
+              onBlur={handleThresholdBlur}
               className="w-16 bg-stone-100 dark:bg-stone-800 border border-stone-200 dark:border-stone-700 rounded-lg px-2 py-1 text-sm font-semibold text-stone-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500"
             />
           </div>
@@ -263,7 +267,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
                 <span className="material-symbols-outlined">swap_vert</span> Significant Ranking Shifts
               </h3>
               <p className="text-sm text-amber-800 dark:text-amber-400/80 mb-3">
-                Normalisation caused {leaderboardData.significantChanges.length} teams to shift ranks by 2 or more positions.
+                Normalisation caused {leaderboardData.significantChanges.length} teams to shift ranks.
               </p>
               <div className="flex flex-wrap gap-2">
                 {leaderboardData.significantChanges.map(sc => (

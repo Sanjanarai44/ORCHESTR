@@ -269,7 +269,7 @@ router.get('/leaderboard/comparison', async (req, res) => {
       const nt = normalisedLeaderboard.find(t => t.teamId === rt.teamId);
       if (nt) {
         const rankChange = rt.rank - nt.rank;
-        if (Math.abs(rankChange) >= 2) {
+        if (Math.abs(rankChange) >= 1) {
           significantChanges.push({
             teamId: rt.teamId,
             teamName: rt.teamName,

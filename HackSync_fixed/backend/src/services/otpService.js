@@ -29,9 +29,12 @@ export async function sendEmailOTP(email, name = "", userId = "") {
     },
   });
 
+  const jobId = `otp_${email}_${Date.now()}`;
+
   // Create EmailLog
   const emailLog = await prisma.emailLog.create({
     data: {
+      jobId,
       recipientId: userId || "unknown",
       recipientEmail: email,
       recipientName: name,
@@ -50,7 +53,7 @@ export async function sendEmailOTP(email, name = "", userId = "") {
       code: code
     },
     logId: emailLog.id
-  }, { jobId: `otp_${email}_${Date.now()}` });
+  }, { jobId });
 
   return { success: true };
 }
