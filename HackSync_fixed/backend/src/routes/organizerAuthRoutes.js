@@ -26,9 +26,11 @@ function publicOrganizer(org) {
     avatarUrl: org.avatarUrl || null,
   };
 }
+
 router.get("/auth/test", (req, res) => {
   res.send("Auth routes working");
 });
+
 // ─── Email + password ──────────────────────────────────────────────
 router.post('/auth/register', async (req, res) => {
   try {
@@ -128,8 +130,7 @@ router.patch('/api/admin/profile', async (req, res) => {
   }
 });
 
-// ─── OAuth strategies ───────────────────────────────────────────────
-// session:false everywhere below — we issue our own JWT, no server-side login session needed.
+// ─── Google OAuth ───────────────────────────────────────────────────
 passport.use(new GoogleStrategy({
   clientID: process.env.GOOGLE_CLIENT_ID,
   clientSecret: process.env.GOOGLE_CLIENT_SECRET,
@@ -156,96 +157,61 @@ passport.use(new GoogleStrategy({
   }
 }));
 
-// GitHub OAuth (optional)
-if (
-  process.env.GITHUB_CLIENT_ID &&
-  process.env.GITHUB_CLIENT_SECRET
-) {
-  passport.use(
-    new GitHubStrategy(
-      {
-        clientID: process.env.GITHUB_CLIENT_ID,
-        clientSecret: process.env.GITHUB_CLIENT_SECRET,
-        callbackURL: `${BACKEND_URL}/auth/github/callback`,
-      },
-      async (accessToken, refreshToken, profile, done) => {
-        try {
-          const email =
-            profile.emails?.[0]?.value?.toLowerCase() ||
-            `${profile.username}@users.noreply.github.com`;
+// ✅ session: true so Passport can store OAuth state between redirect hops
+router.get('/auth/google',
+  passport.authenticate('google', { scope: ['profile', 'email'] })
+);
 
-          let organizer = await prisma.organizer.findUnique({
-            where: { email },
-          });
+router.get('/auth/google/callback',
+  passport.authenticate('google', { failureRedirect: `${FRONTEND_URL}/?authError=true` }),
+  (req, res) => {
+    const token = signToken(req.user);
+    const payload = encodeURIComponent(JSON.stringify(publicOrganizer(req.user)));
+    res.redirect(`${FRONTEND_URL}/?adminToken=${token}&organizer=${payload}`);
+  }
+);
 
-          if (!organizer) {
-            organizer = await prisma.organizer.create({
-              data: {
-                name:
-                  profile.displayName ||
-                  profile.username ||
-                  "Organizer",
-                email,
-                authProvider: "github",
-                providerId: String(profile.id),
-                avatarUrl: profile.photos?.[0]?.value || null,
-              },
-            });
-          }
-
-          return done(null, organizer);
-        } catch (e) {
-          return done(e);
-        }
+// ─── GitHub OAuth (optional) ────────────────────────────────────────
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(new GitHubStrategy({
+    clientID: process.env.GITHUB_CLIENT_ID,
+    clientSecret: process.env.GITHUB_CLIENT_SECRET,
+    callbackURL: `${BACKEND_URL}/auth/github/callback`,
+  }, async (accessToken, refreshToken, profile, done) => {
+    try {
+      const email =
+        profile.emails?.[0]?.value?.toLowerCase() ||
+        `${profile.username}@users.noreply.github.com`;
+      let organizer = await prisma.organizer.findUnique({ where: { email } });
+      if (!organizer) {
+        organizer = await prisma.organizer.create({
+          data: {
+            name: profile.displayName || profile.username || 'Organizer',
+            email,
+            authProvider: 'github',
+            providerId: String(profile.id),
+            avatarUrl: profile.photos?.[0]?.value || null,
+          },
+        });
       }
-    )
+      return done(null, organizer);
+    } catch (e) {
+      return done(e);
+    }
+  }));
+
+  router.get('/auth/github',
+    passport.authenticate('github', { scope: ['user:email'] })
   );
 
-  router.get(
-    "/auth/github",
-    passport.authenticate("github", {
-      scope: ["user:email"],
-      session: false,
-    })
-  );
-
-  router.get(
-    "/auth/github/callback",
-    passport.authenticate("github", {
-      session: false,
-      failureRedirect: `${FRONTEND_URL}/?authError=true`,
-    }),
+  router.get('/auth/github/callback',
+    passport.authenticate('github', { failureRedirect: `${FRONTEND_URL}/?authError=true` }),
     (req, res) => {
       const token = signToken(req.user);
-      const payload = encodeURIComponent(
-        JSON.stringify(publicOrganizer(req.user))
-      );
-
-      res.redirect(
-        `${FRONTEND_URL}/?adminToken=${token}&organizer=${payload}`
-      );
+      const payload = encodeURIComponent(JSON.stringify(publicOrganizer(req.user)));
+      res.redirect(`${FRONTEND_URL}/?adminToken=${token}&organizer=${payload}`);
     }
   );
 }
-
-router.get('/auth/google', passport.authenticate('google', { scope: ['profile', 'email'], session: false }));
-router.get('/auth/google/callback',
-  passport.authenticate('google', { session: false, failureRedirect: `${FRONTEND_URL}/?authError=true` }),
-  (req, res) => {
-    const token = signToken(req.user);
-    const payload = encodeURIComponent(JSON.stringify(publicOrganizer(req.user)));
-    res.redirect(`${FRONTEND_URL}/?adminToken=${token}&organizer=${payload}`);
-  }
-);
-
-router.get('/auth/github', passport.authenticate('github', { scope: ['user:email'], session: false }));
-router.get('/auth/github/callback',
-  passport.authenticate('github', { session: false, failureRedirect: `${FRONTEND_URL}/?authError=true` }),
-  (req, res) => {
-    const token = signToken(req.user);
-    const payload = encodeURIComponent(JSON.stringify(publicOrganizer(req.user)));
-    res.redirect(`${FRONTEND_URL}/?adminToken=${token}&organizer=${payload}`);
-  }
-);
 
 export default router;
