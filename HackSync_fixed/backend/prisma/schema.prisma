@@ -18,22 +18,23 @@ model Event {
   judges       Judge[]
   participants Participant[]
   teams        Team[]
+  githubRepos  GithubRepo[]
 }
 
 model Participant {
-  id        String   @id @default(cuid())
-  eventId   String
-  name      String
-  email     String
-  college   String
-  skill     String
-  stage     String   @default("roster")
-  qualified Boolean  @default(false)
-  inviteStatus String @default("NONE")
+  id           String   @id @default(cuid())
+  eventId      String
+  name         String
+  email        String
+  college      String
+  skill        String
+  stage        String   @default("roster")
+  qualified    Boolean  @default(false)
+  inviteStatus String   @default("NONE")
   sessionNotes String?
-  createdAt DateTime @default(now())
+  createdAt    DateTime @default(now())
 
-  event Event @relation(fields: [eventId], references: [id])
+  event               Event                @relation(fields: [eventId], references: [id])
   mentorConversations MentorConversation[]
 
   @@unique([eventId, email])
@@ -54,6 +55,8 @@ model Team {
   mentorMessages   MentorConversation[]
   event            Event                @relation(fields: [eventId], references: [id])
   members          TeamMember[]
+  githubRepoUrl    String?
+  githubRepo    GithubRepo?
 }
 
 model TeamMember {
@@ -161,4 +164,37 @@ model OtpCode {
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+
+model GithubRepo {
+  id        String   @id @default(cuid())
+  eventId   String
+  teamId    String?  @unique
+  repoUrl   String
+  owner     String
+  repoName  String
+  createdAt DateTime @default(now())
+
+  event Event @relation(fields: [eventId], references: [id])
+  team  Team? @relation(fields: [teamId], references: [id])
+
+  analyses GithubAnalysis[]
+}
+
+model GithubAnalysis {
+  id String @id @default(cuid())
+
+  repoId String
+
+  githubUsername String
+
+  commits      Int @default(0)
+  pullRequests Int @default(0)
+  issues       Int @default(0)
+
+  contributionScore Float
+
+  updatedAt DateTime @updatedAt
+
+  repo GithubRepo @relation(fields: [repoId], references: [id])
 }

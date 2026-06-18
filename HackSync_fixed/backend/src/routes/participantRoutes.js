@@ -71,5 +71,54 @@ router.post("/qualify-team/:teamId", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+router.get("/event-status/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const qualifiedCount = await prisma.participant.count({
+      where: { eventId, qualified: true }
+    });
+    res.json({ resultsPublished: qualifiedCount > 0 });
+  } catch (err) {
+    res.status(500).json({ success: false, resultsPublished: false });
+  }
+});
+
+// Team submits/updates their GitHub repository URL, and auto-connects it
+// for the GitHub Contribution Analyzer (creates or updates the linked GithubRepo row)
+router.post("/team/:teamId/github-repo", async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { repoUrl } = req.body;
+
+    if (!repoUrl || !/^https?:\/\/(www\.)?github\.com\/[\w.-]+\/[\w.-]+(\.git)?\/?$/i.test(repoUrl.trim())) {
+      return res.status(400).json({ success: false, error: "Enter a valid GitHub repository URL, e.g. https://github.com/owner/repo" });
+    }
+
+    const cleanUrl = repoUrl.trim().replace(/\/$/, "").replace(/\.git$/, "");
+
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) return res.status(404).json({ success: false, error: "Team not found" });
+
+    const parts = cleanUrl.split("/");
+    const owner = parts[3];
+    const repoName = parts[4];
+    if (!owner || !repoName) {
+      return res.status(400).json({ success: false, error: "Could not parse owner/repo from that URL" });
+    }
+
+    await prisma.team.update({ where: { id: teamId }, data: { githubRepoUrl: cleanUrl } });
+
+    const githubRepo = await prisma.githubRepo.upsert({
+      where: { teamId },
+      update: { repoUrl: cleanUrl, owner, repoName },
+      create: { eventId: team.eventId, teamId, repoUrl: cleanUrl, owner, repoName },
+    });
+
+    return res.json({ success: true, githubRepo });
+  } catch (err) {
+    console.error("GitHub repo submission error:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
 
 export default router;

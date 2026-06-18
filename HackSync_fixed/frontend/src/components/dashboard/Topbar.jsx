@@ -42,7 +42,9 @@ function Topbar({ darkMode, setDarkMode, eventConfig }) {
             <p className="text-xs font-bold text-black dark:text-white">Admin</p>
             <p className="text-[9px] font-bold text-gray-500 uppercase">Full Access</p>
           </div>
-          <img alt="Administrator" className="w-8 h-8 rounded-full" src="https://i.pravatar.cc/100" />
+          <div className="w-8 h-8 rounded-full bg-[#1B4332] text-white flex items-center justify-center text-xs font-bold">
+  A
+</div>
         </div>
       </div>
     </header>

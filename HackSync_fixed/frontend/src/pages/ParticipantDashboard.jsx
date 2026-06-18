@@ -5,6 +5,7 @@ import ParticipantHeader from '../components/participant/ParticipantHeader';
 import WelcomeHero from '../components/participant/WelcomeHero';
 import TimelineTracker from '../components/participant/TimelineTracker';
 import TeamAndResources from '../components/participant/TeamAndResources';
+import GithubRepoSubmission from '../components/participant/GithubRepoSubmission';
 import AIMentor from './AIMentor';
 import ParticipantLeaderboard from '../components/participant/ParticipantLeaderboard';
 import WorkflowTracker from '../components/shared/WorkflowTracker';
@@ -111,24 +112,22 @@ const handleInviteResponse = async (response) => {
         }
 
         // Load ALL published teams and find the participant's team
-        const targetEventId = currentEventId || 1;
-        const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED&eventId=${targetEventId}`);
-        const tData = await tRes.json();
-        const teams = tData.teams || [];
-        
+const targetEventId = currentEventId || participant.eventId || 1;  // ← fix
+const tRes = await fetch(`${NODE}/api/admin/teams?status=PUBLISHED&eventId=${targetEventId}`);
+const tData = await tRes.json();
+const teams = tData.teams || [];
 
-        // Also check DRAFT teams if not found in PUBLISHED
-        let myTeam = teams.find(t =>
-          t.members?.some(m => m.email === currentEmail)
-        );
+let myTeam = teams.find(t =>
+  t.members?.some(m => m.email === currentEmail)
+);
 
-        if (!myTeam) {
-          const dRes = await fetch(`${NODE}/api/admin/teams?status=DRAFT&eventId=${targetEventId}`);
-          const dData = await dRes.json();
-          myTeam = (dData.teams || []).find(t =>
-            t.members?.some(m => m.email === currentEmail)
-          );
-        }
+if (!myTeam) {
+  const dRes = await fetch(`${NODE}/api/admin/teams?status=DRAFT&eventId=${targetEventId}`);
+  const dData = await dRes.json();
+  myTeam = (dData.teams || []).find(t =>
+    t.members?.some(m => m.email === currentEmail)
+  );
+}
         
         // Add a fallback team if demo user isn't in any actual team
         if (!myTeam && participant.id?.startsWith('demo-')) {
@@ -223,6 +222,8 @@ const handleInviteResponse = async (response) => {
       </div>
     );
   }
+console.log("TEAM:", team);
+console.log("TEAM ID:", team?.id);
 console.log("PARTICIPANT OBJECT:", participant);
 console.log("EVENT CONFIG:", eventConfig);
 console.log("EVENT ID prop:", eventId);
@@ -262,8 +263,8 @@ console.log("PARTICIPANT STAGE:", participant.stage);
   <EventJourney participant={participant} eventConfig={eventConfig} />
 </div>
 
-            <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6">
-              <TeamAndResources
+            <div ref={sectionRefs.teams} id="teams" className="scroll-mt-6 space-y-6">
+  <TeamAndResources
   team={team}
   eventConfig={eventConfig}
   compatibilitySummary={compatibilitySummary}
@@ -271,7 +272,13 @@ console.log("PARTICIPANT STAGE:", participant.stage);
   onOpenAIMentor={() => setShowAIMentor(true)}
   leaderboard={<ParticipantLeaderboard eventId={participant?.eventId || eventConfig?.id || eventId} currentTeamId={team?.id} />}
 />
-            </div>
+  {team?.id && !String(team.id).startsWith('demo-') && (
+    <GithubRepoSubmission
+      team={team}
+      onUpdated={(url) => setTeam(prev => prev ? { ...prev, githubRepoUrl: url } : prev)}
+    />
+  )}
+</div>
           </div>
         )}
       </main>
