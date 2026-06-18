@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { judgesApi } from '../../api';
 
 const NODE_URL = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 const AI_URL = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
@@ -15,6 +16,14 @@ export default function JudgesTab({ eventConfig, eventId }) {
   const fileInputRef = useRef(null);
   const [rubric, setRubric] = useState('');
   const [rubricLoading, setRubricLoading] = useState(false);
+
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [addForm, setAddForm] = useState({ name: "", email: "" });
+  const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ id: null, name: "", email: "" });
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
 
   const criteria = eventConfig?.scoring_criteria || [];
 
@@ -121,7 +130,49 @@ export default function JudgesTab({ eventConfig, eventId }) {
     setRubricLoading(false);
   };
 
-  const filtered = judges.filter(j =>
+  const handleAddJudge = async () => {
+    if (!addForm.name || !addForm.email) { alert('Name and email are required.'); return; }
+    if (!eventId) { alert('No event selected.'); return; }
+    setIsSubmittingAdd(true);
+    try {
+      await judgesApi.add({ ...addForm, eventId: String(eventId) });
+      alert('✅ Judge added!');
+      setIsAddModalOpen(false);
+      setAddForm({ name: "", email: "" });
+      fetchJudges();
+    } catch (err) {
+      alert(`❌ Failed: ${err.message}`);
+    } finally {
+      setIsSubmittingAdd(false);
+    }
+  };
+
+  const handleEditJudge = async () => {
+    if (!editForm.name || !editForm.email) { alert('Name and email are required.'); return; }
+    setIsSubmittingEdit(true);
+    try {
+      await judgesApi.update(editForm.id, editForm);
+      alert('✅ Judge updated!');
+      setIsEditModalOpen(false);
+      fetchJudges();
+    } catch (err) {
+      alert(`❌ Failed: ${err.message}`);
+    } finally {
+      setIsSubmittingEdit(false);
+    }
+  };
+
+  const handleDeleteJudge = async (id) => {
+    if (!confirm('Delete this judge?')) return;
+    try {
+      await judgesApi.delete(id);
+      fetchJudges();
+    } catch (err) {
+      alert(`❌ Failed: ${err.message}`);
+    }
+  };
+
+  const filtered = judges.filter(j => 
     !search || j.name?.toLowerCase().includes(search.toLowerCase()) || j.email?.toLowerCase().includes(search.toLowerCase())
   );
 
@@ -220,6 +271,25 @@ export default function JudgesTab({ eventConfig, eventId }) {
                         <p className="text-lg font-bold text-stone-900 dark:text-white">{assigned.length}</p>
                         <p className="text-[10px] text-stone-400 uppercase">Teams</p>
                       </div>
+                      <div className="flex flex-col gap-1 ml-2 border-l border-stone-200 dark:border-stone-800 pl-3">
+                        <button
+                          onClick={() => {
+                            setEditForm({ id: judge.id, name: judge.name, email: judge.email });
+                            setIsEditModalOpen(true);
+                          }}
+                          className="text-stone-400 hover:text-emerald-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
+                          title="Edit Judge"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">edit</span>
+                        </button>
+                        <button
+                          onClick={() => handleDeleteJudge(judge.id)}
+                          className="text-stone-400 hover:text-red-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
+                          title="Delete Judge"
+                        >
+                          <span className="material-symbols-outlined text-[20px]">delete</span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 );
@@ -254,6 +324,16 @@ export default function JudgesTab({ eventConfig, eventId }) {
               <p className="text-xs text-stone-400 mt-0.5">Upload a CSV file containing <code className="text-stone-300">name</code> and <code className="text-stone-300">email</code> columns.</p>
             </div>
             <div className="space-y-3">
+              <button onClick={() => setIsAddModalOpen(true)}
+                className="w-full bg-stone-800 hover:bg-stone-700 text-white py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2">
+                <span className="material-symbols-outlined text-[18px]">person_add</span>
+                Add Manually
+              </button>
+              <div className="flex items-center gap-3 text-stone-500">
+                <div className="flex-1 h-px bg-stone-800"></div>
+                <span className="text-xs font-semibold uppercase">OR</span>
+                <div className="flex-1 h-px bg-stone-800"></div>
+              </div>
               <input type="file" ref={fileInputRef} accept=".csv" className="hidden" onChange={handleUploadCSV} />
               <button onClick={() => fileInputRef.current?.click()} disabled={isUploading}
                 className="w-full bg-white hover:bg-stone-100 disabled:opacity-50 text-stone-950 py-2.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2">
@@ -277,6 +357,86 @@ export default function JudgesTab({ eventConfig, eventId }) {
           </div>
         </div>
       </section>
+
+      {/* Add Modal */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 border border-stone-200/70 dark:border-stone-800 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-stone-900 dark:text-white">Add Judge</h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Full name"
+                value={addForm.name}
+                onChange={e => setAddForm(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={addForm.email}
+                onChange={e => setAddForm(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => { setIsAddModalOpen(false); setAddForm({ name: "", email: "" }); }}
+                className="h-10 px-4 rounded-lg bg-stone-200 hover:bg-stone-300 text-sm font-semibold text-stone-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddJudge}
+                disabled={isSubmittingAdd}
+                className="h-10 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isSubmittingAdd ? "Adding..." : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 border border-stone-200/70 dark:border-stone-800 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-stone-900 dark:text-white">Edit Judge</h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Full name"
+                value={editForm.name}
+                onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={editForm.email}
+                onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="h-10 px-4 rounded-lg bg-stone-200 hover:bg-stone-300 text-sm font-semibold text-stone-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditJudge}
+                disabled={isSubmittingEdit}
+                className="h-10 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isSubmittingEdit ? "Saving..." : "Save"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

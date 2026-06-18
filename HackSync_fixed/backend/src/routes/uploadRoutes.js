@@ -195,6 +195,26 @@ router.delete("/participants/:id", async (req, res) => {
   }
 });
 
+// PUT /api/admin/participants/:id
+router.put("/participants/:id", async (req, res) => {
+  try {
+    const { name, email, skill, institution, college } = req.body;
+    const participant = await prisma.participant.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name: name.trim() }),
+        ...(email && { email: email.trim() }),
+        ...(skill && { skill: normalizeSkill(skill) }),
+        ...((institution || college) && { college: (institution || college).trim() }),
+      },
+    });
+    return res.json({ success: true, message: "Participant updated", data: participant });
+  } catch (error) {
+    if (error?.code === "P2002") return res.status(409).json({ success: false, message: "Email already exists" });
+    return res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 // POST /api/admin/upload-judges
 router.post("/upload-judges", upload.single("file"), async (req, res) => {
   try {

@@ -12,6 +12,9 @@ export default function ParticipantsTab({ eventId }) {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addForm, setAddForm] = useState({ name: "", email: "", skill: "Frontend", institution: "" });
   const [isSubmittingAdd, setIsSubmittingAdd] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editForm, setEditForm] = useState({ id: null, name: "", email: "", skill: "Frontend", institution: "" });
+  const [isSubmittingEdit, setIsSubmittingEdit] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef(null);
 
@@ -116,6 +119,21 @@ export default function ParticipantsTab({ eventId }) {
       alert(`❌ Failed: ${err.message}`);
     } finally {
       setIsSubmittingAdd(false);
+    }
+  };
+
+  const handleEditParticipant = async () => {
+    if (!editForm.name || !editForm.email) { alert('Name and email are required.'); return; }
+    setIsSubmittingEdit(true);
+    try {
+      await participantsApi.update(editForm.id, editForm);
+      alert('✅ Participant updated!');
+      setIsEditModalOpen(false);
+      fetchParticipants();
+    } catch (err) {
+      alert(`❌ Failed: ${err.message}`);
+    } finally {
+      setIsSubmittingEdit(false);
     }
   };
 
@@ -304,6 +322,16 @@ export default function ParticipantsTab({ eventId }) {
                             <span className="material-symbols-outlined text-[20px]">link</span>
                           </button>
                           <button
+                            onClick={() => {
+                              setEditForm({ id: person.id, name: person.name, email: person.email, skill: person.role === "DEV" ? "Frontend" : (person.role.charAt(0).toUpperCase() + person.role.slice(1).toLowerCase()), institution: person.university === "Not Specified" ? "" : person.university });
+                              setIsEditModalOpen(true);
+                            }}
+                            className="text-stone-400 hover:text-emerald-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
+                            title="Edit Participant"
+                          >
+                            <span className="material-symbols-outlined text-[20px]">edit</span>
+                          </button>
+                          <button
                             onClick={() => handleDeleteParticipant(person.id)}
                             className="text-stone-400 hover:text-red-500 p-1 rounded-lg hover:bg-stone-100 dark:hover:bg-stone-800 transition-all"
                             title="Delete Participant"
@@ -417,6 +445,62 @@ export default function ParticipantsTab({ eventId }) {
                 className="h-10 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-sm font-semibold text-white disabled:opacity-60"
               >
                 {isSubmittingAdd ? "Adding..." : "Add"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 border border-stone-200/70 dark:border-stone-800 p-5 space-y-4">
+            <h3 className="text-lg font-bold text-stone-900 dark:text-white">Edit Participant</h3>
+            <div className="space-y-3">
+              <input
+                type="text"
+                placeholder="Full name"
+                value={editForm.name}
+                onChange={e => setEditForm(prev => ({ ...prev, name: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+              <input
+                type="email"
+                placeholder="Email"
+                value={editForm.email}
+                onChange={e => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+              <select
+                value={editForm.skill}
+                onChange={e => setEditForm(prev => ({ ...prev, skill: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              >
+                <option value="Frontend">Frontend</option>
+                <option value="Backend">Backend</option>
+                <option value="Designer">Designer</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Institution"
+                value={editForm.institution}
+                onChange={e => setEditForm(prev => ({ ...prev, institution: e.target.value }))}
+                className="w-full h-10 rounded-lg border border-stone-300 dark:border-stone-700 px-3 bg-white dark:bg-stone-950 text-sm"
+              />
+            </div>
+            <div className="flex justify-end gap-2">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="h-10 px-4 rounded-lg bg-stone-200 hover:bg-stone-300 text-sm font-semibold text-stone-800"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleEditParticipant}
+                disabled={isSubmittingEdit}
+                className="h-10 px-4 rounded-lg bg-stone-900 hover:bg-stone-800 text-sm font-semibold text-white disabled:opacity-60"
+              >
+                {isSubmittingEdit ? "Saving..." : "Save"}
               </button>
             </div>
           </div>

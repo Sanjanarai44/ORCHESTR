@@ -53,6 +53,7 @@ export const participantsApi = {
     `/api/admin/participants/by-email/${encodeURIComponent(email)}${eventId ? `?eventId=${eventId}` : ''}`
   ),
   add: (data) => nodeRequest('/api/admin/participants', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => nodeRequest(`/api/admin/participants/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => nodeRequest(`/api/admin/participants/${id}`, { method: 'DELETE' }),
 };
 
@@ -113,6 +114,7 @@ export const scoresApi = {
 export const judgesApi = {
   getAll: (eventId) => nodeRequest(`/api/admin/judges?eventId=${eventId}`),
   add: (data) => nodeRequest('/api/admin/judges', { method: 'POST', body: JSON.stringify(data) }),
+  update: (id, data) => nodeRequest(`/api/admin/judges/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   delete: (id) => nodeRequest(`/api/admin/judges/${id}`, { method: 'DELETE' }),
   sendLinks: (eventId) => nodeRequest('/api/admin/send-judge-links', {
     method: 'POST', body: JSON.stringify({ eventId }),

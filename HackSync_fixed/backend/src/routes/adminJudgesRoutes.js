@@ -47,6 +47,24 @@ router.delete('/judges/:id', async (req, res) => {
   }
 });
 
+// PUT /api/admin/judges/:id
+router.put('/judges/:id', async (req, res) => {
+  try {
+    const { name, email } = req.body;
+    const judge = await prisma.judge.update({
+      where: { id: req.params.id },
+      data: {
+        ...(name && { name: name.trim() }),
+        ...(email && { email: email.trim() }),
+      },
+    });
+    return res.json({ success: true, judge });
+  } catch (error) {
+    if (error?.code === 'P2002') return res.status(409).json({ success: false, message: 'Email already exists' });
+    return res.status(500).json({ success: false, message: 'Failed to update judge' });
+  }
+});
+
 // POST /api/admin/assign-judges
 router.post('/assign-judges', async (req, res) => {
   try {
