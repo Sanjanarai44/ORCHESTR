@@ -18,11 +18,11 @@ export default function OrganizerLogin({ onLogin }) {
       const body = mode === "login"
         ? { email: form.email, password: form.password }
         : { name: form.name, email: form.email, password: form.password };
-      const res = await fetch(`${import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com'}${endpoint}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
+      const res = await fetch(`${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}${endpoint}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
       const data = await res.json();
       if (data.success) {
           localStorage.setItem("organizer", JSON.stringify(data.organizer));
@@ -106,9 +106,9 @@ export default function OrganizerLogin({ onLogin }) {
             </div>
           )}
           <a
-            href={`${import.meta.env.VITE_AI_URL || "http://localhost:5000"}/auth/google`}
-            className="w-full mt-5 border border-[#E2DDD8] rounded-2xl py-4 px-5 flex items-center justify-center gap-4 bg-white hover:bg-[#FAFAF9] transition-all shadow-sm"
-          >
+            href={`${import.meta.env.VITE_NODE_URL || "http://localhost:5000"}/auth/google`}
+  className="w-full mt-5 border border-[#E2DDD8] rounded-2xl py-4 px-5 flex items-center justify-center gap-4 bg-white hover:bg-[#FAFAF9] transition-all shadow-sm"
+>
             <img
               src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
               alt="Google"
