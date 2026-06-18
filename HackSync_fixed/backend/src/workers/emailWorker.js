@@ -23,14 +23,17 @@ sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@algorythm.com';
 
 // ── Redis connection ──────────────────────────────────────────────────────────
+console.log("REDIS_URL =", process.env.REDIS_URL);
+
 const connection = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null })
+  ? new IORedis(process.env.REDIS_URL, {
+      maxRetriesPerRequest: null,
+    })
   : new IORedis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
+      host: process.env.REDIS_HOST || "localhost",
+      port: parseInt(process.env.REDIS_PORT || "6379"),
       maxRetriesPerRequest: null,
     });
-
 // ── Email template builders ───────────────────────────────────────────────────
 function buildMagicLinkEmail(data) {
   const { judgeName, magicLink, expiryHours = 48, eventName = 'AlgoRythm EventFlow' } = data;
