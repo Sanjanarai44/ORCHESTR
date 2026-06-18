@@ -158,6 +158,31 @@ Return only the email body, no subject line."""
     result = call_llm(prompt, f"Dear {participant_name}, we're excited to share an update about {team_name}.")
     return {"email": result}
 
+@app.post("/calibration-summary")
+def calibration_summary(data: dict):
+    name = data.get("name", "Judge")
+    N = data.get("N", 0)
+    global_avg = data.get("global_avg", 0.0)
+    avg = data.get("avg", 0.0)
+    std_dev = data.get("std_dev", 0.0)
+    bias_label = data.get("bias_label", "Neutral")
+    scores_list = data.get("scores_list", "No scores provided")
+    
+    prompt = f"""You are analyzing scoring patterns for a hackathon judge named {name}. They evaluated {N} teams using a round-robin assignment where different judges evaluated different subsets.
+Global panel average: {global_avg:.2f}/10.
+This judge's average: {avg:.2f}/10.
+Standard deviation: {std_dev:.2f}.
+Bias classification: {bias_label}.
+Their scores per team: {scores_list}.
+In exactly 3 sentences:
+1. Describe their scoring tendency relative to the panel average.
+2. Note any patterns — consistency, outlier scores, variability.
+3. Give a specific recommendation to the committee on whether this judge's scores should be weighted differently.
+Use specific numbers. Be direct."""
+    
+    result = call_llm(prompt, f"{name} graded with an average of {avg:.2f}, classifying them as {bias_label} compared to the global average of {global_avg:.2f}. Their standard deviation is {std_dev:.2f}. The committee should consider this when reviewing final results.")
+    return {"summary": result}
+
 @app.post("/generate-rubric")
 def generate_rubric(data: dict):
     team_name = data.get("team_name", "Team")
@@ -371,6 +396,46 @@ class ContextRequest(BaseModel):
     participant_id: Optional[str] = None
     problem_description: str = None
     session_notes: str = None
+@app.post("/ai-assistant")
+def ai_assistant(data: dict):
+    question = data.get("question", "")
+    participant = data.get("participant", {})
+    history = data.get("history", [])   # 👈 add this
+
+    if not question:
+        return {"reply": "Please ask a question."}
+
+    stage = participant.get("stage", "unknown")
+    name = participant.get("name", "participant")
+
+    messages = [
+        {
+            "role": "system",
+            "content": f"""
+You are an AI Event Assistant for a hackathon dashboard.
+
+User:
+- Name: {name}
+- Stage: {stage}
+
+Be concise (2–4 lines max).
+"""
+        }
+    ]
+
+    # 👇 inject chat history (future-proofing)
+    for msg in history[-6:]:
+        messages.append(msg)
+
+    messages.append({"role": "user", "content": question})
+
+    response = client.chat.completions.create(
+        model="openai/gpt-4o-mini",
+        messages=messages
+    )
+
+    reply = response.choices[0].message.content
+    return {"reply": reply}
 
 @app.get("/ai-mentor/init")
 async def ai_mentor_init(event_id: str, team_id: str, participant_id: Optional[str] = None):

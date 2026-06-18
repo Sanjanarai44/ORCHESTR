@@ -163,10 +163,14 @@ router.post('/evaluate', async (req, res) => {
 
     // Anomaly detection
     const allEvals = await prisma.evaluation.findMany({ where: { teamId } });
-    if (allEvals.length >= 2) {
+    if (allEvals.length >= 3) {
       const avg = allEvals.reduce((s, e) => s + e.scoreCode, 0) / allEvals.length;
       const deviation = Math.abs(Number(scoreCode) - avg);
-      if (deviation > 2.0) {
+      
+      const thresholdSetting = await prisma.eventSettings.findUnique({ where: { key: 'anomaly_threshold' }});
+      const threshold = thresholdSetting ? parseFloat(thresholdSetting.value) : 2.0;
+
+      if (deviation > threshold) {
         await prisma.anomalyFlag.create({
           data: { teamId, judgeId: judge.id, newScore: Number(scoreCode), panelAvg: avg, deviation, status: 'PENDING' },
         });

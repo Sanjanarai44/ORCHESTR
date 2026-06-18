@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function EmailsTab() {
+export default function EmailsTab({ eventId }) {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -10,7 +10,7 @@ export default function EmailsTab() {
     setLoading(true);
     try {
       const NODE = import.meta.env.VITE_NODE_URL || 'http://localhost:5000';
-      const res = await fetch(`${NODE}/api/admin/emails`);
+      const res = await fetch(`${NODE}/api/admin/emails?eventId=${eventId}`);
       const data = await res.json();
       if (res.ok && data.success) {
         setLogs(data.logs);
@@ -25,7 +25,7 @@ export default function EmailsTab() {
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [eventId]);
 
   const handleRetry = async (id) => {
     setRetryingIds(prev => ({ ...prev, [id]: true }));
@@ -82,7 +82,14 @@ export default function EmailsTab() {
           <div className="p-12 text-center text-red-500">{error}</div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            {logs.length === 0 ? (
+              <div className="py-12 text-center bg-stone-50 dark:bg-stone-900/50">
+                <span className="material-symbols-outlined text-4xl text-stone-300 dark:text-stone-700 mb-2 block">mail</span>
+                <p className="text-stone-500 dark:text-stone-400 font-medium">No email logs found for this event.</p>
+                <p className="text-sm text-stone-400 dark:text-stone-500 mt-1">When emails are sent, their delivery status will appear here.</p>
+              </div>
+            ) : (
+              <table className="w-full text-left text-sm">
               <thead className="bg-stone-50 dark:bg-stone-800/40 text-stone-500 text-xs uppercase font-bold tracking-wider">
                 <tr>
                   <th className="px-6 py-4">Recipient</th>
@@ -94,12 +101,7 @@ export default function EmailsTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-stone-100 dark:divide-stone-800/40">
-                {logs.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="px-6 py-8 text-center text-stone-500">No email logs found.</td>
-                  </tr>
-                ) : (
-                  logs.map((log) => (
+                {logs.map((log) => (
                     <tr key={log.id} className="hover:bg-stone-50 dark:hover:bg-stone-800/20 transition-colors">
                       <td className="px-6 py-4">
                         <div className="font-semibold text-stone-900 dark:text-white">{log.recipientName || 'Unknown'}</div>
@@ -128,9 +130,10 @@ export default function EmailsTab() {
                       </td>
                     </tr>
                   ))
-                )}
+                }
               </tbody>
             </table>
+            )}
           </div>
         )}
       </div>

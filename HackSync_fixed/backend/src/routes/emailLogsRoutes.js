@@ -7,7 +7,15 @@ const router = express.Router();
 // GET /api/admin/emails
 router.get('/', async (req, res) => {
   try {
+    const { eventId } = req.query;
+    if (!eventId) return res.status(400).json({ success: false, error: 'eventId is required' });
+
+    const judges = await prisma.judge.findMany({ where: { eventId }, select: { id: true } });
+    const participants = await prisma.participant.findMany({ where: { eventId }, select: { id: true } });
+    const recipientIds = [...judges.map(j => j.id), ...participants.map(p => p.id), `system_${eventId}`];
+
     const logs = await prisma.emailLog.findMany({
+      where: { recipientId: { in: recipientIds } },
       orderBy: { createdAt: 'desc' },
       take: 100 // Limit to recent 100 for dashboard
     });

@@ -7,7 +7,9 @@ import session from "express-session";
 import passport from "passport";
 import './workers/emailWorker.js';
 import './workers/teamWorker.js';
+import './workers/anomalyWorker.js';
 import uploadRoutes from "./routes/uploadRoutes.js";
+import calibrationRoutes from "./routes/calibrationRoutes.js";
 import adminTeamRoutes from "./routes/adminTeamRoutes.js";
 import adminJudgesRoutes from "./routes/adminJudgesRoutes.js";
 import emailLogsRoutes from "./routes/emailLogsRoutes.js";
@@ -17,6 +19,7 @@ import mentorRoutes from "./routes/mentorRoutes.js";
 import participantRoutes from "./routes/participantRoutes.js";
 import organizerAuthRoutes from "./routes/organizerAuthRoutes.js";
 
+import githubRoutes from "./routes/github.routes.js";
 dotenv.config();
 
 const app = express();
@@ -43,10 +46,12 @@ app.use("/api/admin", adminTeamRoutes);   // teams + generate + approve + stages
 app.use("/api/admin", adminJudgesRoutes); // judges CRUD + send links + assign
 app.use("/api/admin/emails", emailLogsRoutes);
 //app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation and anomaly checks
+app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation and anomaly checks
 app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progress
 app.use("/api/otp", otpRoutes);           // send and verify OTP
 app.use("/api/mentor", mentorRoutes);     // mentor data persistence
 app.use("/api/participants", participantRoutes);
+app.use("/api/github", githubRoutes);
 
 app.get("/", (req, res) => res.send("ORCHESTR Node Backend - Port 5000"));
 

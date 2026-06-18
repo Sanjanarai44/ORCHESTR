@@ -288,8 +288,19 @@ router.post("/events", async (req, res) => {
 router.delete("/events/:id", async (req, res) => {
   try {
     const { id } = req.params;
+    
+    // Get all nested entity IDs
     const teams = await prisma.team.findMany({ where: { eventId: id }, select: { id: true } });
     const teamIds = teams.map(t => t.id);
+    
+    const judges = await prisma.judge.findMany({ where: { eventId: id }, select: { id: true } });
+    const judgeIds = judges.map(j => j.id);
+    
+    const participants = await prisma.participant.findMany({ where: { eventId: id }, select: { id: true } });
+    const participantIds = participants.map(p => p.id);
+    
+    const recipientIds = [...judgeIds, ...participantIds, `system_${id}`];
+
     if (teamIds.length > 0) {
       await prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } });
       await prisma.evaluation.deleteMany({ where: { teamId: { in: teamIds } } });
@@ -297,6 +308,20 @@ router.delete("/events/:id", async (req, res) => {
       await prisma.mentorConversation.deleteMany({ where: { teamId: { in: teamIds } } });
       await prisma.team.deleteMany({ where: { eventId: id } });
     }
+
+    if (judgeIds.length > 0) {
+      await prisma.eventSettings.deleteMany({
+        where: { key: { in: judgeIds.map(jid => `calibration_summary_${jid}`) } }
+      });
+    }
+
+    if (recipientIds.length > 0) {
+      await prisma.aiEmailContent.deleteMany({ where: { recipientId: { in: recipientIds } } });
+      await prisma.emailLog.deleteMany({ where: { recipientId: { in: recipientIds } } });
+    }
+
+    await prisma.eventSettings.deleteMany({ where: { key: { startsWith: `${id}_` } } });
+    
     await prisma.judge.deleteMany({ where: { eventId: id } });
     await prisma.participant.deleteMany({ where: { eventId: id } });
     await prisma.event.delete({ where: { id } });
