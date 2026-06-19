@@ -61,7 +61,8 @@ router.post("/qualify-team/:teamId", async (req, res) => {
       if (member.email) {
         await prisma.participant.updateMany({
           where: { email: member.email },
-          data: { qualified: true, inviteStatus: "INVITED" }
+          data: { qualified: true, inviteStatus: "INVITED",
+    stage: "final" }
         });
       }
     }
