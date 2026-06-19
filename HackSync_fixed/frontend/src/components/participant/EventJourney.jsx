@@ -75,7 +75,11 @@ const evaluatorNote =
           <h3 className="text-xs font-bold uppercase tracking-wide text-[#717973] mb-2">Current Stage</h3>
           <p className="text-lg font-bold text-[#012d1d]">{currentStageName}</p>
           <span className="inline-flex mt-3 bg-[#dff6ea] text-[#012d1d] text-xs font-semibold px-3 py-1 rounded-full">
-            {isFinal ? 'Qualified' : isEvaluation ? 'Under Review' : 'Active'}
+            {isFinal
+  ? (participant?.qualified ? 'Qualified' : 'Not Qualified')
+  : isEvaluation
+    ? 'Under Review'
+    : 'Active'}
           </span>
         </div>
 

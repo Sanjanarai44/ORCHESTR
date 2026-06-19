@@ -305,12 +305,23 @@ return {
     if (qualifyingTeams.length === 0) { alert('No teams meet the qualification threshold yet.'); return; }
     if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
     try {
-      for (const team of qualifyingTeams) {
-        await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      }
-      alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
-    } catch { alert('Error qualifying teams.'); }
-  };
+  for (const team of qualifyingTeams) {
+    await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  await fetch(
+    `${NODE}/api/participants/publish-results/${eventId}`,
+    { method: 'POST' }
+  );
+
+  alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
+} catch {
+  alert('Error qualifying teams.');
+}
+  }
 
   const recColors = (rec) => {
     if (rec === 'discard') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', btn: 'bg-red-600 hover:bg-red-700 text-white' };
