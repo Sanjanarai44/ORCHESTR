@@ -21,19 +21,13 @@ import prisma from '../config/prisma.js';
 // ── SendGrid setup ────────────────────────────────────────────────────────────
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@algorythm.com';
-
 // ── Redis connection ──────────────────────────────────────────────────────────
-console.log("REDIS_URL =", process.env.REDIS_URL);
+const connection = new IORedis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
+});
 
-const connection = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, {
-      maxRetriesPerRequest: null,
-    })
-  : new IORedis({
-      host: process.env.REDIS_HOST || "localhost",
-      port: parseInt(process.env.REDIS_PORT || "6379"),
-      maxRetriesPerRequest: null,
-    });
+connection.on("error", (e) => console.warn("[EmailWorker] Redis error:", e.message));
 // ── Email template builders ───────────────────────────────────────────────────
 function buildMagicLinkEmail(data) {
   const { judgeName, magicLink, expiryHours = 48, eventName = 'AlgoRythm EventFlow' } = data;
