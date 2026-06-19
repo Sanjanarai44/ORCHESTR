@@ -663,9 +663,34 @@ router.get('/leaderboard', async (req, res) => {
         members: t.members.map(m => ({ name: m.name, skill: m.skill })),
         hasAnomaly: (t.anomalyFlags || []).length > 0,
       };
-    }).sort((a, b) => b.sortScore - a.sortScore);
+    }).sort((a, b) => {
+  // 1. Primary — overall sort score
+  if (b.sortScore !== a.sortScore) return b.sortScore - a.sortScore;
+  // 2. Tiebreaker 1 — innovation
+  if (b.innovation !== a.innovation) return b.innovation - a.innovation;
+  // 3. Tiebreaker 2 — presentation
+  if (b.presentation !== a.presentation) return b.presentation - a.presentation;
+  // 4. Tiebreaker 3 — code/technical
+  if (b.code !== a.code) return b.code - a.code;
+  // 5. Final fallback — judge count
+  return b.judgeCount - a.judgeCount;
+});
 
-    return res.json({ success: true, leaderboard: ranked });
+    // Add rank + tie flag
+let rank = 1;
+ranked.forEach((team, i) => {
+  if (i > 0 && team.sortScore === ranked[i - 1].sortScore) {
+    team.rank = ranked[i - 1].rank;
+    team.isTie = true;
+    ranked[i - 1].isTie = true;
+  } else {
+    team.rank = rank;
+    team.isTie = false;
+  }
+  rank++;
+});
+
+return res.json({ success: true, leaderboard: ranked });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
   }
