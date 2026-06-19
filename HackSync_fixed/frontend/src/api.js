@@ -40,9 +40,9 @@ export const authApi = {
 
 // ─── Events — stored in PostgreSQL via Node ───────────────────────────────────
 export const eventsApi = {
-  getAll: (organizerId) => aiRequest(`/events?organizer_id=${organizerId}`),
-  create: (data) => aiRequest('/events', { method: 'POST', body: JSON.stringify(data) }),
-  delete: (id) => aiRequest(`/events/${id}`, { method: 'DELETE' }),
+  getAll: (organizerId) => nodeRequest(`/api/admin/events?organizerId=${organizerId}`),
+  create: (data) => nodeRequest('/api/admin/events', { method: 'POST', body: JSON.stringify(data) }),
+  delete: (id) => nodeRequest(`/api/admin/events/${id}`, { method: 'DELETE' }),
 };
 
 // ─── Participants (Node → PostgreSQL) ─────────────────────────────────────────
