@@ -2,13 +2,19 @@ import React from 'react';
 
 export default function EventJourney({ participant, eventConfig }) {
   const STAGE_MAP = {
-    roster: 'registered',
-    development: 'development',
-    evaluation: 'evaluation',
-    demo: 'demo',
-    final: 'final',
-  };
-  const rawStage = participant?.stage || 'roster';
+  roster: 'development',
+  team: 'development',
+  registered: 'development',
+  development: 'development',
+  evaluation: 'evaluation',
+  demo: 'demo',
+  final: 'final',
+};
+
+const rawStage = participant?.stage || 'roster';
+console.log("Participant stage:", rawStage);
+
+
   const currentStage = STAGE_MAP[rawStage] || rawStage;
   const stages = eventConfig?.stages || [];
   const eventName = eventConfig?.event_name || 'Event';
@@ -34,8 +40,19 @@ export default function EventJourney({ participant, eventConfig }) {
     currentStage === 'final' ? 'Submitted' :
     currentStage === 'evaluation' || currentStage === 'demo' ? 'Ready to Submit' :
     'In Progress';
-  const evaluatorText = isEvaluation ? 'Assigned by committee' : 'Not assigned yet';
-  const evaluatorNote = isEvaluation ? 'Your submission is under review' : 'Evaluators will be assigned after submission';
+  const evaluatorText =
+  isFinal
+    ? 'Evaluation Complete'
+    : isEvaluation
+      ? 'Assigned by committee'
+      : 'Not assigned yet';
+
+const evaluatorNote =
+  isFinal
+    ? 'Final results have been published'
+    : isEvaluation
+      ? 'Your submission is under review'
+      : 'Evaluators will be assigned after submission';
   const advancementRule = eventConfig?.advancement_rule || '';
 
   return (
@@ -58,7 +75,11 @@ export default function EventJourney({ participant, eventConfig }) {
           <h3 className="text-xs font-bold uppercase tracking-wide text-[#717973] mb-2">Current Stage</h3>
           <p className="text-lg font-bold text-[#012d1d]">{currentStageName}</p>
           <span className="inline-flex mt-3 bg-[#dff6ea] text-[#012d1d] text-xs font-semibold px-3 py-1 rounded-full">
-            {isFinal ? 'Qualified' : isEvaluation ? 'Under Review' : 'Active'}
+            {isFinal
+  ? (participant?.qualified ? 'Qualified' : 'Not Qualified')
+  : isEvaluation
+    ? 'Under Review'
+    : 'Active'}
           </span>
         </div>
 

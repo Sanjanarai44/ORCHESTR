@@ -181,7 +181,9 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
       const lbRes = await fetch(`${NODE}/api/admin/leaderboard?eventId=${eventId}`);
       const lbData = await lbRes.json();
       const lbMap = {};
-      (lbData.leaderboard || []).forEach(t => { lbMap[t.id] = t.sortScore; });
+(lbData.leaderboard || []).forEach(t => { 
+  lbMap[t.id] = { sortScore: t.sortScore, rank: t.rank, isTie: t.isTie }; 
+});
 
       let totalScores = 0, sumScores = 0, teamsWithScores = 0;
       const teamsWithData = await Promise.all(allTeams.map(async (team) => {
@@ -189,12 +191,18 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
           const scoreRes = await fetch(`${NODE}/api/admin/scores/${team.id}`);
           const scoreData = await scoreRes.json();
           const scores = scoreData.scores || [];
-          const avg = lbMap[team.id] !== undefined ? lbMap[team.id] : (scoreData.average || 0);
-          totalScores += scores.length;
-          if (scores.length > 0) { sumScores += avg; teamsWithScores++; }
-          return { ...team, scores, average: avg, anomalies: scoreData.anomalies || [] };
+          const lbEntry = lbMap[team.id];
+const avg = lbEntry?.sortScore ?? (scoreData.average || 0);
+totalScores += scores.length;
+if (scores.length > 0) { sumScores += avg; teamsWithScores++; }
+return { 
+  ...team, scores, average: avg, 
+  rank: lbEntry?.rank, 
+  isTie: lbEntry?.isTie,
+  anomalies: scoreData.anomalies || [] 
+};
         } catch {
-          return { ...team, scores: [], average: lbMap[team.id] || 0, anomalies: [] };
+          return { ...team, scores: [], average: lbMap[team.id]?.sortScore || 0, rank: lbMap[team.id]?.rank, isTie: false, anomalies: [] };
         }
       }));
 
@@ -297,12 +305,23 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
     if (qualifyingTeams.length === 0) { alert('No teams meet the qualification threshold yet.'); return; }
     if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
     try {
-      for (const team of qualifyingTeams) {
-        await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, { method: 'POST', headers: { 'Content-Type': 'application/json' } });
-      }
-      alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
-    } catch { alert('Error qualifying teams.'); }
-  };
+  for (const team of qualifyingTeams) {
+    await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' }
+    });
+  }
+
+  await fetch(
+    `${NODE}/api/participants/publish-results/${eventId}`,
+    { method: 'POST' }
+  );
+
+  alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
+} catch {
+  alert('Error qualifying teams.');
+}
+  }
 
   const recColors = (rec) => {
     if (rec === 'discard') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', btn: 'bg-red-600 hover:bg-red-700 text-white' };
@@ -437,7 +456,7 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
           </div>
         ) : (
           <div>
-            {teams.sort((a, b) => b.average - a.average).map((team, i) => {
+            {teams.map((team, i) => {
               const contrib = contributions[team.id];
               const isExpanded = expandedContrib[team.id];
               const flagged = contrib?.leaderboard?.some(u => u.status !== 'Normal');
@@ -449,7 +468,12 @@ export default function EvaluationsTab({ eventConfig, eventId }) {
                   <div className="px-5 py-4 flex items-center gap-4 hover:bg-stone-50 dark:hover:bg-stone-800/30 transition-colors">
                     {/* Rank + name */}
                     <div className="flex items-center gap-2 w-40 flex-shrink-0">
-                      <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-stone-700 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">{i + 1}</span>
+                      <span className="w-6 h-6 rounded-full bg-stone-900 dark:bg-stone-700 text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+  {team.rank || i + 1}
+</span>
+{team.isTie && (
+  <span className="text-[9px] font-bold px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full">TIE</span>
+)}
                       <span className="font-bold text-sm text-stone-900 dark:text-white truncate">{team.name}</span>
                       {(team.anomalies || []).length > 0 && <span className="material-symbols-outlined text-red-500 text-[14px] flex-shrink-0">warning</span>}
                     </div>

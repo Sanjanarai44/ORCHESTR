@@ -22,7 +22,24 @@ function App() {
   const [participantToken, setParticipantToken] = useState(null);
   const [participant, setParticipant] = useState(null);
   const [mentorTeam, setMentorTeam] = useState(null);
+  useEffect(() => {
+  const params = new URLSearchParams(window.location.search);
 
+  const token = params.get("adminToken");
+  const organizerParam = params.get("organizer");
+
+  if (token && organizerParam) {
+    const org = JSON.parse(decodeURIComponent(organizerParam));
+
+    localStorage.setItem("adminToken", token);
+    localStorage.setItem("organizer", JSON.stringify(org));
+
+    window.history.replaceState({}, "", "/");
+
+    setOrganizer(org);
+    setView("events");
+  }
+}, []);
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get('token');

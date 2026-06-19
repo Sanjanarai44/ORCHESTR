@@ -61,7 +61,7 @@ router.post("/qualify-team/:teamId", async (req, res) => {
       if (member.email) {
         await prisma.participant.updateMany({
           where: { email: member.email },
-          data: { qualified: true, inviteStatus: "INVITED" }
+          data: { qualified: true, inviteStatus: "INVITED"}
         });
       }
     }
@@ -118,6 +118,20 @@ router.post("/team/:teamId/github-repo", async (req, res) => {
   } catch (err) {
     console.error("GitHub repo submission error:", err);
     return res.status(500).json({ success: false, error: err.message });
+  }
+});
+router.post("/publish-results/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    await prisma.participant.updateMany({
+      where: { eventId },
+      data: { stage: "final" }
+    });
+
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

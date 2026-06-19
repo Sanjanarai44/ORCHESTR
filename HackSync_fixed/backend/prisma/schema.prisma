@@ -41,6 +41,7 @@ model Participant {
   @@unique([eventId, email])
 }
 
+
 model Team {
   id               String               @id @default(cuid())
   eventId          String
@@ -165,6 +166,17 @@ model OtpCode {
   code      String
   expiresAt DateTime
   createdAt DateTime @default(now())
+}
+model Organizer {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  password     String?
+  authProvider String   @default("email") // 'email' | 'google' | 'github'
+  providerId   String?
+  avatarUrl    String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model GithubRepo {

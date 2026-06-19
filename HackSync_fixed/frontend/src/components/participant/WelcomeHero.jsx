@@ -84,6 +84,8 @@ export default function WelcomeHero({
         return 'Submit your final project.';
       case 'completed':
         return 'Your project has been submitted successfully.';
+      case 'final':
+        return 'Results have been published.';
       default:
         return 'Stay tuned for updates.';
     }
@@ -136,6 +138,26 @@ export default function WelcomeHero({
           </div>
         </div>
       )}
+      {participant?.stage === 'final' &&
+ participant?.qualified &&
+ participant?.inviteStatus === 'CONFIRMED' && (
+  <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+    <p className="font-bold text-green-700">
+      You have confirmed participation in the next round.
+    </p>
+  </div>
+)}
+      {participant?.stage === 'final' && !participant?.qualified && (
+  <div className="bg-stone-100 rounded-2xl p-6">
+    <p className="font-bold text-lg">
+      Results Published
+    </p>
+
+    <p className="text-sm text-stone-600 mt-1">
+      Thank you for participating. Your team did not qualify for the next round.
+    </p>
+  </div>
+)}
 
       {/* MAIN GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

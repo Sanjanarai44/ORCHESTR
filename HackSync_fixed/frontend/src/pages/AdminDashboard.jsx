@@ -13,6 +13,7 @@ import EvaluationsTab from "../components/dashboard/EvaluationsTab.jsx";
 import CalibrationTab from "../components/dashboard/CalibrationTab.jsx";
 import EmailsTab from "../components/dashboard/EmailsTab.jsx";
 import FeedbackTab from "../components/dashboard/FeedbackTab.jsx";
+import ProfileTab from "../components/dashboard/ProfileTab.jsx";
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
@@ -126,7 +127,10 @@ export default function AdminDashboard({ eventConfig, eventId, organizer, onBack
           </div>
         </div>
       )}
-
+      {activeTab === "Profile" && (
+  <ProfileTab organizer={organizer} onLogout={onLogout} />
+)}
+      
       {activeTab === "Participants" && (
         <ParticipantsTab eventConfig={eventConfig} eventId={eventId} />
       )}

@@ -2,14 +2,12 @@ import { Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import prisma from '../config/prisma.js';
 
-const connection = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null })
-  : new IORedis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      maxRetriesPerRequest: null,
-    });
+const connection = new IORedis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: null,
+  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
+});
 
+connection.on("error", (e) => console.warn("[AnomalyWorker] Redis error:", e.message));
 const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
 
 const anomalyWorker = new Worker(

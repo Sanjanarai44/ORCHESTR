@@ -23,7 +23,7 @@ const STAGES = [
 ];
 
 const STAGE_MAP = {
-  roster: 'registered',
+  roster: 'development',
   development: 'development',
   evaluation: 'evaluation',
   demo: 'demo',
@@ -37,7 +37,7 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
   email: 'demo@example.com',
   college: 'Demo University',
   skill: 'Frontend',
-  stage: 'roster',
+  stage: 'roster'
 });
   const [activeSection, setActiveSection] = useState('dashboard');
   const [showAIMentor, setShowAIMentor] = useState(false);

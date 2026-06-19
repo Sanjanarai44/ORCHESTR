@@ -1,8 +1,16 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
-import './workers/emailWorker.js';
-import './workers/anomalyWorker.js';
+dotenv.config(); // ← MUST be first, before any other imports that read env vars
+
+import session from "express-session";
+import passport from "passport";
+
+// Workers — wrap in try/catch so a Redis crash doesn't kill the server
+try { await import('./workers/emailWorker.js'); } catch(e) { console.warn('emailWorker failed to load:', e.message); }
+try { await import('./workers/teamWorker.js'); } catch(e) { console.warn('teamWorker failed to load:', e.message); }
+try { await import('./workers/anomalyWorker.js'); } catch(e) { console.warn('anomalyWorker failed to load:', e.message); }
+
 import uploadRoutes from "./routes/uploadRoutes.js";
 import calibrationRoutes from "./routes/calibrationRoutes.js";
 import adminTeamRoutes from "./routes/adminTeamRoutes.js";
@@ -12,18 +20,46 @@ import judgeAuthRoutes from "./routes/judgeAuthRoutes.js";
 import otpRoutes from "./routes/otpRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
 import participantRoutes from "./routes/participantRoutes.js";
+import organizerAuthRoutes from "./routes/organizerAuthRoutes.js";
 import githubRoutes from "./routes/github.routes.js";
 import feedbackRoutes from "./routes/feedbackRoutes.js";
 dotenv.config();
 
 const app = express();
-app.use(cors());
+
+const isProd = process.env.NODE_ENV === "production";
+
+// ─── CORS ────────────────────────────────────────────────────────────
+// Must explicitly allow the frontend origin + credentials for OAuth cookies
+app.use(cors({
+  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  credentials: true,
+}));
+
 app.use(express.json());
 
-// Data routes - all PostgreSQL via Prisma
-app.use("/api/admin", uploadRoutes);      // participants + CSV upload
-app.use("/api/admin", adminTeamRoutes);   // teams + generate + approve + stages + activity + scores
-app.use("/api/admin", adminJudgesRoutes); // judges CRUD + send links + assign
+// ─── Session (OAuth state only — no persistent login) ────────────────
+// In production on Render, frontend and backend are on different subdomains,
+// so we need sameSite:'none' + secure:true for the cookie to be sent back
+// on the OAuth callback.
+app.use(session({
+  secret: process.env.SESSION_SECRET || "orchestr-oauth-state-secret",
+  resave: false,
+  saveUninitialized: true,
+  cookie: {
+    secure: isProd,           // true in prod (HTTPS only)
+    sameSite: isProd ? "none" : "lax",  // 'none' required for cross-origin cookies
+    maxAge: 5 * 60 * 1000,   // 5 min — just long enough for the OAuth dance
+  },
+}));
+
+app.use(passport.initialize());
+
+// ─── Routes ──────────────────────────────────────────────────────────
+app.use("/", organizerAuthRoutes);
+app.use("/api/admin", uploadRoutes);
+app.use("/api/admin", adminTeamRoutes);
+app.use("/api/admin", adminJudgesRoutes);
 app.use("/api/admin/emails", emailLogsRoutes);
 app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation and anomaly checks
 app.use("/api/admin/feedback", feedbackRoutes); // Feedback admin stats
