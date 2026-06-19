@@ -1,8 +1,10 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
+import { emailQueue } from "../queues/emailQueue.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
+const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
 
 // If Option A: This maps to GET http://localhost:5000/api/participants
 // If Option B: This maps to GET http://localhost:5000/api/admin/participants
@@ -52,6 +54,10 @@ router.post("/:id/respond", async (req, res) => {
 router.post("/qualify-team/:teamId", async (req, res) => {
   try {
     const { teamId } = req.params;
+    const { rank = "?", score = "?" } = req.body || {};
+
+    const team = await prisma.team.findUnique({ where: { id: teamId } });
+    if (!team) return res.status(404).json({ success: false, error: "Team not found" });
 
     const members = await prisma.teamMember.findMany({
       where: { teamId }
@@ -59,15 +65,77 @@ router.post("/qualify-team/:teamId", async (req, res) => {
 
     for (const member of members) {
       if (member.email) {
-        await prisma.participant.updateMany({
-          where: { email: member.email },
-          data: { qualified: true, inviteStatus: "INVITED"}
+        // Find participant to get ID
+        const participant = await prisma.participant.findFirst({
+          where: { email: member.email, eventId: team.eventId }
         });
+        
+        if (participant) {
+          await prisma.participant.update({
+            where: { id: participant.id },
+            data: { qualified: true, inviteStatus: "INVITED"}
+          });
+
+          // Generate AI Email
+          let htmlBody = "";
+          try {
+            const aiRes = await fetch(`${AI_BACKEND_URL}/draft-results-email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                participant_name: participant.name,
+                team_name: team.name,
+                rank,
+                score
+              })
+            });
+            const aiData = await aiRes.json();
+            htmlBody = aiData.email;
+          } catch (e) {
+            console.error("AI Email error:", e);
+          }
+
+          if (htmlBody) {
+            // Log it and Queue it
+            const jobId = `participant_results_${participant.id}_${Date.now()}`;
+            
+            await prisma.aiEmailContent.create({
+              data: {
+                id: `ai_${jobId}`,
+                recipientId: participant.id,
+                emailType: 'results',
+                subject: `🏆 Congratulations! You Qualified! — ${team.name}`,
+                htmlBody
+              }
+            });
+
+            const emailLog = await prisma.emailLog.create({
+              data: {
+                jobId,
+                recipientId: participant.id,
+                recipientEmail: participant.email,
+                recipientName: participant.name,
+                emailType: 'results',
+                status: 'PENDING'
+              }
+            });
+
+            await emailQueue.add('send_email', {
+              emailType: 'results',
+              recipientId: participant.id,
+              recipientEmail: participant.email,
+              recipientName: participant.name,
+              templateData: {},
+              logId: emailLog.id
+            }, { jobId });
+          }
+        }
       }
     }
 
     res.json({ success: true, qualified: members.length });
   } catch (err) {
+    console.error("Qualify error:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });

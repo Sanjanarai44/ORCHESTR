@@ -158,6 +158,38 @@ Return only the email body, no subject line."""
     result = call_llm(prompt, f"Dear {participant_name}, we're excited to share an update about {team_name}.")
     return {"email": result}
 
+@app.post("/draft-results-email")
+def draft_results_email(data: dict):
+    participant_name = data.get("participant_name", "Participant")
+    team_name = data.get("team_name", "Your Team")
+    rank = data.get("rank", "?")
+    score = data.get("score", "?")
+    
+    prompt = f"""Draft a warm, professional 3-4 sentence email body to a hackathon participant named {participant_name}. 
+Their team "{team_name}" has just qualified! They ranked #{rank} with an average score of {score}/10. 
+Congratulate them and let them know they are moving on to the next round.
+Format the output as clean HTML without markdown backticks. Do not include outer html/body tags, just the inner paragraphs. Include a bolded rank and score."""
+    
+    fallback = f"""<p style="font-size: 16px; color: #111827;">Hi <strong>{participant_name}</strong>,</p>
+          <p style="font-size: 14px; color: #374151; line-height: 1.6;">
+            The final results for <strong>{team_name}</strong> are in. Your team ranked <strong>#{rank}</strong> with an average score of <strong>{score}/10</strong>.
+          </p>
+          <p style="font-size: 14px; color: #374151; font-style: italic;">Congratulations on qualifying for the next round!</p>"""
+          
+    html_body = call_llm(prompt, fallback)
+    
+    full_html = f"""
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 600px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; overflow: hidden;">
+        <div style="background: #16a34a; padding: 32px 40px;">
+          <h1 style="color: #fff; font-size: 22px; margin: 0; font-weight: 700;">🏆 Congratulations! You Qualified!</h1>
+        </div>
+        <div style="padding: 40px;">
+          {html_body}
+        </div>
+      </div>"""
+      
+    return {"email": full_html}
+
 @app.post("/calibration-summary")
 def calibration_summary(data: dict):
     name = data.get("name", "Judge")

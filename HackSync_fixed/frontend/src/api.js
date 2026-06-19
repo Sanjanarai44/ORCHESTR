@@ -163,6 +163,7 @@ export const stageApi = {
 export const aiApi = {
   generateRationale: (data) => aiRequest('/generate-rationale', { method: 'POST', body: JSON.stringify(data) }),
   draftEmail: (data) => aiRequest('/draft-email', { method: 'POST', body: JSON.stringify(data) }),
+  draftResultsEmail: (data) => aiRequest('/draft-results-email', { method: 'POST', body: JSON.stringify(data) }),
   generateRubric: (data) => aiRequest('/generate-rubric', { method: 'POST', body: JSON.stringify(data) }),
   explainAnomaly: (data) => aiRequest('/explain-anomaly', { method: 'POST', body: JSON.stringify(data) }),
   compatibilitySummary: (data) => aiRequest('/compatibility-summary', { method: 'POST', body: JSON.stringify(data) }),

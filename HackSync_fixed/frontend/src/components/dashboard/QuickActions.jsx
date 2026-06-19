@@ -2,8 +2,8 @@ import React, { useState, useEffect } from "react";
 import { aiApi, adminTeamsApi } from "../../api";
 
 function QuickActions({ eventId }) {
-  const [email, setEmail] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [emails, setEmails] = useState({});
+  const [loadingType, setLoadingType] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
   const [approving, setApproving] = useState(false);
 
@@ -31,18 +31,41 @@ function QuickActions({ eventId }) {
     setApproving(false);
   };
 
-  const generateEmail = async () => {
-    setLoading(true);
+  const generateEmail = async (type) => {
+    setLoadingType(type);
     try {
-      const res = await aiApi.draftEmail({
-        stage: "Team Assignment",
-        team_name: "Your Team",
-        participant_name: "Participant",
-        event_id: eventId,
-      });
-      setEmail(res.email);
+      let res;
+      if (type === 'participant') {
+        res = await aiApi.draftEmail({
+          stage: "Team Assignment",
+          team_name: "Your Team",
+          participant_name: "Participant",
+          event_id: eventId,
+        });
+      } else if (type === 'judge') {
+        res = await aiApi.draftEmail({
+          stage: "Judge Invitation",
+          team_name: "N/A",
+          participant_name: "Judge Smith",
+          event_id: eventId,
+        });
+      } else if (type === 'qualified') {
+        res = await aiApi.draftResultsEmail({
+          participant_name: "Participant",
+          team_name: "Your Team",
+          rank: 1,
+          score: 9.5
+        });
+      }
+      
+      let emailContent = res.email;
+      if (type === 'qualified') {
+         emailContent = emailContent.replace(/<[^>]+>/g, '').trim(); 
+      }
+      
+      setEmails(prev => ({ ...prev, [type]: emailContent }));
     } catch (err) { console.error(err); }
-    setLoading(false);
+    setLoadingType(null);
   };
 
   return (
@@ -100,37 +123,40 @@ function QuickActions({ eventId }) {
             <span className="material-symbols-outlined text-sm">psychology</span>
             AI Email Drafting
           </h4>
-          <button
-            onClick={generateEmail}
-            disabled={loading}
-            className="text-[10px] font-bold text-[#1B4332] hover:underline disabled:opacity-50"
-          >
-            {loading ? "GENERATING..." : "DRAFT EMAIL"}
-          </button>
         </div>
 
         <div className="space-y-3">
           {[
-            { title: "Team Assignment", sub: "Welcome email", badge: "Ready", badgeClass: "text-[#1B4332] bg-[#1B4332]/10" },
-            { title: "Evaluation Reminder", sub: "Judge notification", badge: "Pending", badgeClass: "text-gray-400 bg-gray-100" },
-          ].map((item, i) => (
-            <div key={i} className="bg-[#F5F3F0] rounded-lg p-3 flex justify-between items-center border border-gray-200">
-              <div>
-                <p className="text-xs font-bold">{item.title}</p>
-                <p className="text-[9px] text-gray-500 uppercase">{item.sub}</p>
+            { id: "participant", title: "Participant Portal", sub: "Welcome & Login Link" },
+            { id: "judge", title: "Judge Portal", sub: "Magic Link Access" },
+            { id: "qualified", title: "Qualification Results", sub: "Top teams announcement" },
+          ].map((item) => (
+            <div key={item.id} className="bg-[#F5F3F0] rounded-lg p-3 flex flex-col border border-gray-200 transition-all">
+              <div className="flex justify-between items-center">
+                <div>
+                  <p className="text-xs font-bold">{item.title}</p>
+                  <p className="text-[9px] text-gray-500 uppercase">{item.sub}</p>
+                </div>
+                <button
+                  onClick={() => generateEmail(item.id)}
+                  disabled={loadingType === item.id}
+                  className="text-[10px] font-bold text-[#1B4332] hover:underline disabled:opacity-50"
+                >
+                  {loadingType === item.id ? "GENERATING..." : "PREVIEW"}
+                </button>
               </div>
-              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${item.badgeClass}`}>
-                {item.badge}
-              </span>
+              
+              {emails[item.id] && (
+                <div className="mt-3 pt-3 border-t border-gray-200">
+                  <p className="text-[10px] uppercase text-gray-500 mb-2 font-bold flex items-center gap-1">
+                    <span className="material-symbols-outlined text-[12px]">auto_awesome</span>
+                    AI Draft
+                  </p>
+                  <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{emails[item.id]}</p>
+                </div>
+              )}
             </div>
           ))}
-
-          {email && (
-            <div className="bg-[#F5F3F0] rounded-lg p-4 border border-gray-200 mt-2">
-              <p className="text-[10px] uppercase text-gray-500 mb-2 font-bold">AI Draft</p>
-              <p className="text-xs text-gray-700 whitespace-pre-wrap leading-relaxed">{email}</p>
-            </div>
-          )}
         </div>
       </div>
     </div>

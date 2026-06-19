@@ -160,6 +160,7 @@ function ContribPanel({ contrib, teamId, analyzing, onAnalyze, githubRepoUrl }) 
 
 export default function EvaluationsTab({ eventConfig, eventId }) {
   const [teams, setTeams] = useState([]);
+  const [topX, setTopX] = useState(3);
   const [anomalies, setAnomalies] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAnomaly, setSelectedAnomaly] = useState(null);
@@ -301,14 +302,22 @@ return {
 
   const handlePublishAndQualify = async () => {
     if (anomalies.length > 0) { alert('Resolve all score anomalies before publishing results.'); return; }
-    const qualifyingTeams = teams.filter(t => t.average >= 8);
-    if (qualifyingTeams.length === 0) { alert('No teams meet the qualification threshold yet.'); return; }
-    if (!confirm(`Qualify ${qualifyingTeams.length} team(s) with avg score ≥ 8? Participants will be notified.`)) return;
+    
+    const limit = Math.max(1, parseInt(topX) || 1);
+    const qualifyingTeams = [...teams]
+      .filter(t => t.scores && t.scores.length > 0) // only consider scored teams
+      .sort((a, b) => b.average - a.average)
+      .slice(0, limit);
+      
+    if (qualifyingTeams.length === 0) { alert('No scored teams available to qualify.'); return; }
+    if (!confirm(`Qualify the top ${qualifyingTeams.length} team(s)? Participants will be notified.`)) return;
     try {
-  for (const team of qualifyingTeams) {
+  for (let i = 0; i < qualifyingTeams.length; i++) {
+    const team = qualifyingTeams[i];
     await fetch(`${NODE}/api/participants/qualify-team/${team.id}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ rank: i + 1, score: team.average })
     });
   }
 
@@ -317,7 +326,7 @@ return {
     { method: 'POST' }
   );
 
-  alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully!`);
+  alert(`✅ ${qualifyingTeams.length} team(s) qualified successfully! Qualification emails have been queued and are being sent.`);
 } catch {
   alert('Error qualifying teams.');
 }
@@ -438,9 +447,21 @@ return {
       <section className="bg-white dark:bg-stone-900 rounded-2xl border border-stone-200/60 dark:border-stone-800 overflow-hidden">
         <div className="p-5 border-b border-stone-100 dark:border-stone-800 flex items-center justify-between">
           <h3 className="font-bold text-stone-900 dark:text-white">Score Breakdown</h3>
-          <div className="flex gap-2">
+          <div className="flex gap-3 items-center">
+            <div className="flex items-center gap-2 mr-2">
+              <label htmlFor="topX" className="text-xs font-bold text-stone-600 dark:text-stone-300">Top Teams:</label>
+              <input 
+                id="topX"
+                type="number" 
+                min="1"
+                value={topX} 
+                onChange={(e) => setTopX(e.target.value)}
+                onBlur={(e) => setTopX(Math.max(1, parseInt(e.target.value) || 1))}
+                className="w-16 px-2 py-1 text-xs border border-stone-300 rounded dark:bg-stone-800 dark:border-stone-700 outline-none focus:border-stone-500"
+              />
+            </div>
             <button onClick={handlePublishAndQualify} className="text-xs font-bold px-4 py-2 bg-[#1B4332] text-white rounded-lg hover:opacity-90">
-              Publish Results & Qualify Teams
+              Publish Results & Qualify Top {Math.max(1, parseInt(topX) || 1)}
             </button>
             <button onClick={fetchData} className="text-xs font-bold text-stone-500 hover:text-stone-900 flex items-center gap-1">
               <span className="material-symbols-outlined text-[16px]">refresh</span> Refresh
