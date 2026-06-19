@@ -678,8 +678,15 @@ router.get('/leaderboard', async (req, res) => {
 
     // Add rank + tie flag
 let rank = 1;
+
 ranked.forEach((team, i) => {
-  if (i > 0 && team.sortScore === ranked[i - 1].sortScore) {
+  if (
+  i > 0 &&
+  team.judgeCount > 0 &&
+  ranked[i - 1].judgeCount > 0 &&
+  team.sortScore === ranked[i - 1].sortScore &&
+  team.innovation === ranked[i - 1].innovation
+) {
     team.rank = ranked[i - 1].rank;
     team.isTie = true;
     ranked[i - 1].isTie = true;
@@ -687,6 +694,7 @@ ranked.forEach((team, i) => {
     team.rank = rank;
     team.isTie = false;
   }
+
   rank++;
 });
 
