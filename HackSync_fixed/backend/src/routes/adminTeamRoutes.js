@@ -680,13 +680,19 @@ router.get('/leaderboard', async (req, res) => {
 let rank = 1;
 
 ranked.forEach((team, i) => {
+  // No scores yet → no rank
+  if (team.judgeCount === 0) {
+    team.rank = null;
+    team.isTie = false;
+    return;
+  }
+
   if (
-  i > 0 &&
-  team.judgeCount > 0 &&
-  ranked[i - 1].judgeCount > 0 &&
-  team.sortScore === ranked[i - 1].sortScore &&
-  team.innovation === ranked[i - 1].innovation
-) {
+    i > 0 &&
+    ranked[i - 1].judgeCount > 0 &&
+    team.sortScore === ranked[i - 1].sortScore &&
+    team.innovation === ranked[i - 1].innovation
+  ) {
     team.rank = ranked[i - 1].rank;
     team.isTie = true;
     ranked[i - 1].isTie = true;
@@ -697,7 +703,6 @@ ranked.forEach((team, i) => {
 
   rank++;
 });
-
 return res.json({ success: true, leaderboard: ranked });
   } catch (e) {
     return res.status(500).json({ success: false, message: e.message });
