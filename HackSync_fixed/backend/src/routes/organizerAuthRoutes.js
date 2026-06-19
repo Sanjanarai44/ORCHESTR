@@ -156,7 +156,16 @@ passport.use(new GoogleStrategy({
     return done(e);
   }
 }));
+passport.serializeUser((user, done) => done(null, user.id));
 
+passport.deserializeUser(async (id, done) => {
+  try {
+    const org = await prisma.organizer.findUnique({ where: { id } });
+    done(null, org);
+  } catch (e) {
+    done(e, null);
+  }
+});
 // ✅ session: true so Passport can store OAuth state between redirect hops
 router.get('/auth/google',
   passport.authenticate('google', { scope: ['profile', 'email'] })
