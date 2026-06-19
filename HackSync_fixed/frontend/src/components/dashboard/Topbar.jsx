@@ -1,5 +1,8 @@
-function Topbar({ darkMode, setDarkMode, eventConfig }) {
+function Topbar({ darkMode, setDarkMode, eventConfig, organizer, onProfileClick }) {
   const eventName = eventConfig?.event_name || "Admin Console";
+  const initials = organizer?.name
+    ? organizer.name.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+    : "A";
 
   return (
     <header className="sticky top-0 z-40 bg-[#F5F3F0]/80 dark:bg-[#111827]/80 backdrop-blur-md h-16 flex justify-between items-center w-full px-10 border-b border-gray-200 dark:border-gray-800 transition-all">
@@ -37,15 +40,23 @@ function Topbar({ darkMode, setDarkMode, eventConfig }) {
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full border border-white" />
         </button>
 
-        <div className="flex items-center gap-3 bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-full px-4 py-1.5 shadow-sm">
+        {/* Clickable profile pill */}
+        <button
+          onClick={onProfileClick}
+          className="flex items-center gap-3 bg-white dark:bg-[#1f2937] border border-gray-200 dark:border-gray-700 rounded-full px-4 py-1.5 shadow-sm hover:shadow-md hover:border-[#1B4332]/40 transition-all"
+        >
           <div className="text-right">
-            <p className="text-xs font-bold text-black dark:text-white">Admin</p>
+            <p className="text-xs font-bold text-black dark:text-white">
+              {organizer?.name || "Admin"}
+            </p>
             <p className="text-[9px] font-bold text-gray-500 uppercase">Full Access</p>
           </div>
           <div className="w-8 h-8 rounded-full bg-[#1B4332] text-white flex items-center justify-center text-xs font-bold">
-  A
-</div>
-        </div>
+            {organizer?.avatarUrl
+              ? <img src={organizer.avatarUrl} alt="avatar" className="w-8 h-8 rounded-full object-cover" />
+              : initials}
+          </div>
+        </button>
       </div>
     </header>
   );

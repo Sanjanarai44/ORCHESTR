@@ -1,7 +1,4 @@
 // src/components/shared/WorkflowTracker.jsx
-// Used in BOTH AdminDashboard and ParticipantDashboard
-// Props: eventId (string), isAdmin (bool)
-
 import React, { useState, useEffect } from 'react';
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
@@ -30,6 +27,19 @@ const statusLabel = {
   pending: 'Upcoming',
 };
 
+// Maps workflow-status stage keys → actual DB values in Participant.stage
+function getDbStageKey(stageKey) {
+  const keyMap = {
+    registration: 'roster',
+    team_formation: 'development',
+    evaluation: 'evaluation',
+    evaluation_round_1: 'evaluation',
+    evaluation_round_2: 'evaluation',
+    finals: 'final',
+  };
+  return keyMap[stageKey] || stageKey;
+}
+
 export default function WorkflowTracker({ eventId, isAdmin = false }) {
   const [workflow, setWorkflow] = useState(null);
   const [advancing, setAdvancing] = useState(false);
@@ -40,14 +50,14 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
       const data = await res.json();
       if (data.success) setWorkflow(data);
     } catch {
-      // silently fail — stale data stays on screen
+      // silently fail
     }
   };
 
   useEffect(() => {
     if (!eventId) return;
     fetchWorkflow();
-    const interval = setInterval(fetchWorkflow, 10000); // poll every 10s
+    const interval = setInterval(fetchWorkflow, 10000);
     return () => clearInterval(interval);
   }, [eventId]);
 
@@ -56,17 +66,20 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
   const stages = workflow.stages || [];
   const currentIndex = workflow.currentStageIndex ?? 0;
   const totalStages = workflow.totalStages ?? stages.length;
-
-  const progress = totalStages > 1
-    ? (currentIndex / (totalStages - 1)) * 100
-    : 0;
+  const progress = totalStages > 1 ? (currentIndex / (totalStages - 1)) * 100 : 0;
 
   const handleAdvance = async () => {
     const currentStage = stages[currentIndex];
     const nextStage = stages[currentIndex + 1];
     if (!nextStage) return;
 
-    if (!confirm(`Advance all participants from "${currentStage.label}" → "${nextStage.label}"?\n\nThis updates every participant's stage in the database.`)) return;
+    const fromDb = getDbStageKey(currentStage.key);
+    const toDb = getDbStageKey(nextStage.key);
+
+    if (!confirm(
+      `Advance all participants from "${currentStage.label}" → "${nextStage.label}"?\n\n` +
+      `This moves participants with DB stage "${fromDb}" → "${toDb}".`
+    )) return;
 
     setAdvancing(true);
     try {
@@ -75,15 +88,19 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           eventId,
-          fromStage: currentStage.key,
-          toStage: nextStage.key,
+          from_stage: fromDb,  // ✅ matches backend: req.body.from_stage
+          to_stage: toDb,      // ✅ matches backend: req.body.to_stage
         }),
       });
       const data = await res.json();
-      alert(`✅ ${data.affected ?? "All"} participant${data.affected !== 1 ? "s" : ""} advanced to ${nextStage.label}`);
-      await fetchWorkflow();
+      if (data.success) {
+        alert(`✅ ${data.affected ?? 0} participant${data.affected !== 1 ? "s" : ""} advanced to "${nextStage.label}"`);
+        await fetchWorkflow();
+      } else {
+        alert(`❌ Failed: ${data.message || 'Unknown error'}`);
+      }
     } catch {
-      alert("❌ Stage advance failed.");
+      alert("❌ Stage advance failed. Check your connection.");
     } finally {
       setAdvancing(false);
     }
@@ -119,17 +136,19 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
         </div>
       </div>
 
-      {/* Stage cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Stage cards — responsive grid based on count */}
+      <div className={`grid gap-3 ${
+        totalStages <= 2 ? 'grid-cols-2' :
+        totalStages === 3 ? 'grid-cols-3' :
+        'grid-cols-2 md:grid-cols-4'
+      }`}>
         {stages.map((stage) => (
           <div
             key={stage.key}
             className={`rounded-xl p-3 border transition-all ${
-              stage.status === 'in_progress'
-                ? 'border-blue-200 bg-blue-50'
-                : stage.status === 'completed'
-                ? 'border-emerald-200 bg-emerald-50'
-                : 'border-stone-200 bg-stone-50'
+              stage.status === 'in_progress' ? 'border-blue-200 bg-blue-50' :
+              stage.status === 'completed'   ? 'border-emerald-200 bg-emerald-50' :
+                                               'border-stone-200 bg-stone-50'
             }`}
           >
             <div className="flex items-center gap-2 mb-2">
@@ -141,11 +160,9 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
             <p className="text-xs font-bold text-stone-900">{stage.label}</p>
             <p className="text-[10px] text-stone-500 mt-0.5">{stage.detail}</p>
             <p className={`text-[10px] font-semibold mt-1 ${
-              stage.status === 'completed'
-                ? 'text-emerald-600'
-                : stage.status === 'in_progress'
-                ? 'text-blue-600'
-                : 'text-stone-400'
+              stage.status === 'completed'   ? 'text-emerald-600' :
+              stage.status === 'in_progress' ? 'text-blue-600' :
+                                               'text-stone-400'
             }`}>
               {statusLabel[stage.status]}
             </p>
@@ -153,7 +170,7 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
         ))}
       </div>
 
-      {/* Admin-only meta row + advance button */}
+      {/* Admin-only: meta stats + advance button */}
       {isAdmin && (
         <>
           {workflow.meta && (
@@ -164,7 +181,7 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
               </div>
               <div>
                 <p className="text-lg font-bold text-stone-900">{workflow.meta.publishedTeams}</p>
-                <p className="text-[10px] text-stone-500">Teams Published</p>
+                <p className="text-[10px] text-amber-600">Teams Published</p>
               </div>
               <div>
                 <p className="text-lg font-bold text-stone-900">{workflow.meta.judges}</p>
@@ -173,7 +190,6 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
             </div>
           )}
 
-          {/* Advance stage control */}
           <div className="mt-4 pt-4 border-t border-stone-100 flex items-center justify-between">
             <div>
               <p className="text-xs text-stone-400">
@@ -191,9 +207,7 @@ export default function WorkflowTracker({ eventId, isAdmin = false }) {
               {advancing
                 ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 : <span className="material-symbols-outlined text-[16px]">arrow_forward</span>}
-              {advancing
-                ? "Advancing..."
-                : `Advance to ${stages[currentIndex + 1]?.label || 'End'}`}
+              {advancing ? "Advancing..." : `Advance to ${stages[currentIndex + 1]?.label || 'End'}`}
             </button>
           </div>
         </>
