@@ -13,6 +13,7 @@ import otpRoutes from "./routes/otpRoutes.js";
 import mentorRoutes from "./routes/mentorRoutes.js";
 import participantRoutes from "./routes/participantRoutes.js";
 import githubRoutes from "./routes/github.routes.js";
+import feedbackRoutes from "./routes/feedbackRoutes.js";
 dotenv.config();
 
 const app = express();
@@ -25,6 +26,8 @@ app.use("/api/admin", adminTeamRoutes);   // teams + generate + approve + stages
 app.use("/api/admin", adminJudgesRoutes); // judges CRUD + send links + assign
 app.use("/api/admin/emails", emailLogsRoutes);
 app.use("/api/admin/calibration", calibrationRoutes); // Z-score normalisation and anomaly checks
+app.use("/api/admin/feedback", feedbackRoutes); // Feedback admin stats
+app.use("/api/feedback", feedbackRoutes); // Feedback submit
 app.use("/api/judge", judgeAuthRoutes);   // verify + teams + evaluate + progress
 app.use("/api/otp", otpRoutes);           // send and verify OTP
 app.use("/api/mentor", mentorRoutes);     // mentor data persistence

@@ -207,6 +207,7 @@ function ContribDrawer({ teamId, open, onClose }) {
 
 export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judgeToken, onBack }) {
   const [teams, setTeams] = useState([]);
+  const [eventId, setEventId] = useState(null);
   const [activeTeamIndex, setActiveTeamIndex] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -219,6 +220,7 @@ export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judg
       try {
         const data = await judgeApi.getTeams(judgeToken);
         setTeams(data.teams || []);
+        setEventId(data.eventId);
         let startIndex = 0;
         if (initialTeamId) {
           const idx = (data.teams || []).findIndex(t => t.id === initialTeamId);
@@ -252,6 +254,7 @@ export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judg
       if (data) {
         const updatedTeams = data.teams || [];
         setTeams(updatedTeams);
+        setEventId(data.eventId);
         const allScored = updatedTeams.every((t) => t.scored);
         setAllDone(updatedTeams.length > 0 && allScored);
         if (!allScored && nextTeamId) {
@@ -269,7 +272,9 @@ export default function JudgeEvaluate({ judgeName = 'Judge', initialTeamId, judg
   const activeTeam = teams[activeTeamIndex] || null;
   const initials = judgeName.split(' ').map((w) => w[0]).join('').toUpperCase().slice(0, 2);
 
-  if (!loading && allDone) return <SuccessState judgeName={judgeName} />;
+  // We decode judgeToken to get judge details if available, or fallback to judgeName.
+  // We'll pass judgeName as a fallback for judgeId if no token decoding is simple here.
+  if (!loading && allDone) return <SuccessState judgeName={judgeName} eventId={eventId} judgeId={judgeName} />;
 
   if (loading) return (
     <div className="min-h-screen bg-white dark:bg-stone-950 flex items-center justify-center">

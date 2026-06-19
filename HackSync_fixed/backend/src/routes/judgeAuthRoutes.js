@@ -115,7 +115,7 @@ router.get('/teams', async (req, res) => {
       };
     }));
 
-    return res.json({ success: true, teams: teams.filter(Boolean), judgeName: judge.name });
+    return res.json({ success: true, teams: teams.filter(Boolean), judgeName: judge.name, eventId: judge.eventId });
   } catch (error) {
     console.error('[JudgeAuth] GET /teams error:', error);
     return res.status(500).json({ success: false, detail: 'Server error' });

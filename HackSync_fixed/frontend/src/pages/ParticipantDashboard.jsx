@@ -270,7 +270,7 @@ console.log("PARTICIPANT STAGE:", participant.stage);
   compatibilitySummary={compatibilitySummary}
   compatibilityLoading={compatibilityLoading}
   onOpenAIMentor={() => setShowAIMentor(true)}
-  leaderboard={<ParticipantLeaderboard eventId={participant?.eventId || eventConfig?.id || eventId} currentTeamId={team?.id} />}
+  leaderboard={<ParticipantLeaderboard eventId={participant?.eventId || eventConfig?.id || eventId} currentTeamId={team?.id} participantId={participant?.id} />}
 />
   {team?.id && !String(team.id).startsWith('demo-') && (
     <GithubRepoSubmission

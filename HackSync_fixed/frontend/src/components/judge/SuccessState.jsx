@@ -1,58 +1,43 @@
 import React from 'react';
+import JudgeFeedbackForm from './JudgeFeedbackForm';
 
 /**
  * SuccessState — Full-screen completion state shown when all teams are scored.
  * Shown after the last team's scores are submitted.
  */
-export default function SuccessState({ judgeName = 'Judge' }) {
+export default function SuccessState({ judgeName = 'Judge', eventId, judgeId }) {
   return (
     <div className="min-h-screen bg-white flex items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-md">
-        {/* Animated checkmark SVG */}
-        <div className="mx-auto">
-          <svg
-            viewBox="0 0 120 120"
-            className="w-32 h-32 mx-auto"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle
-              cx="60"
-              cy="60"
-              r="54"
-              fill="none"
-              stroke="#e7f5e9"
-              strokeWidth="8"
-            />
-            <circle
-              cx="60"
-              cy="60"
-              r="54"
-              fill="none"
-              stroke="#16a34a"
-              strokeWidth="8"
-              strokeDasharray="339.3"
-              strokeDashoffset="0"
-              strokeLinecap="round"
-              className="animate-[drawCircle_0.8s_ease-out_forwards]"
-            />
-            <polyline
-              points="38,62 54,78 84,44"
-              fill="none"
-              stroke="#16a34a"
-              strokeWidth="7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="animate-[drawCheck_0.4s_0.5s_ease-out_both]"
-            />
-          </svg>
+        
+        {/* Animated Checkmark */}
+        <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
+          <div className="absolute inset-0 bg-stone-100 rounded-full animate-pulse scale-150 opacity-50" />
+          <div className="absolute inset-0 bg-stone-100 rounded-full animate-ping opacity-30" />
+          <div className="relative w-20 h-20 bg-stone-900 rounded-full flex items-center justify-center shadow-xl z-10 checkmark-container">
+            <svg 
+              className="w-10 h-10 text-white"
+              fill="none" 
+              viewBox="0 0 24 24" 
+              stroke="currentColor" 
+              strokeWidth="3"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                d="M5 13l4 4L19 7" 
+                className="checkmark-path"
+              />
+            </svg>
+          </div>
         </div>
 
         <div className="space-y-3">
-          <h1 className="text-3xl font-bold text-stone-900 tracking-tight">
-            All evaluations complete
-          </h1>
-          <p className="text-base text-stone-500 leading-relaxed">
-            Thank you, <strong className="text-stone-700">{judgeName}</strong>. Your scores have been recorded and will be included in the final leaderboard calculation.
+          <h2 className="text-2xl font-bold tracking-tight text-stone-900">
+            All Evaluations Complete
+          </h2>
+          <p className="text-stone-500 text-sm max-w-[280px] mx-auto leading-relaxed">
+            Thank you, {judgeName}. You have successfully submitted scores for all assigned teams.
           </p>
         </div>
 
@@ -60,16 +45,29 @@ export default function SuccessState({ judgeName = 'Judge' }) {
           <span className="material-symbols-outlined text-stone-400 text-[18px] align-middle mr-2">info</span>
           The event committee will review all scores and notify you of the final results. You may close this window.
         </div>
+
+        {/* Judge Feedback Form */}
+        <div className="mt-8">
+          <JudgeFeedbackForm eventId={eventId} judgeId={judgeId} judgeName={judgeName} />
+        </div>
       </div>
 
       <style>{`
-        @keyframes drawCircle {
-          from { stroke-dashoffset: 339.3; }
-          to   { stroke-dashoffset: 0; }
+        .checkmark-path {
+          stroke-dasharray: 40;
+          stroke-dashoffset: 40;
+          animation: drawCheck 0.6s cubic-bezier(0.65, 0, 0.45, 1) forwards;
+          animation-delay: 0.2s;
         }
         @keyframes drawCheck {
-          from { stroke-dasharray: 0 100; }
-          to   { stroke-dasharray: 100 0; }
+          to { stroke-dashoffset: 0; }
+        }
+        .checkmark-container {
+          animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+        }
+        @keyframes popIn {
+          0% { transform: scale(0.5); opacity: 0; }
+          100% { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </div>

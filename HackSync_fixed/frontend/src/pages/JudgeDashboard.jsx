@@ -4,6 +4,7 @@ import EvaluationHero from '../components/judge/EvaluationHero';
 import EvaluationQueue from '../components/judge/EvaluationQueue';
 import JudgeResources from '../components/judge/JudgeResources';
 import ActivityAndMentors from '../components/judge/ActivityAndMentors';
+import JudgeFeedbackForm from '../components/judge/JudgeFeedbackForm';
 import { judgeApi } from '../api';
 
 const POLL_INTERVAL = 30000; // 30 seconds real-time refresh
@@ -12,6 +13,7 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
   const [activeSection, setActiveSection] = useState('dashboard');
   const [countdown, setCountdown] = useState({ hours: 2, minutes: 48, seconds: 12 });
   const [teams, setTeams] = useState([]);
+  const [eventId, setEventId] = useState(null);
   const [teamScores, setTeamScores] = useState({});
   const [progress, setProgress] = useState({ evaluated: 0, total: 0, percent: 0, nextTeam: null });
   const [error, setError] = useState(null);
@@ -43,6 +45,7 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
       const res = await judgeApi.getTeams(judgeToken);
       const teamList = res.teams || [];
       setTeams(teamList);
+      setEventId(res.eventId);
       setError(null);
 
       // Compute progress
@@ -69,9 +72,15 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
     return () => clearInterval(pollRef.current);
   }, [judgeToken]);
 
+  const handleNavClick = (e, id) => {
+    e.preventDefault();
+    setActiveSection(id);
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="bg-[#F5F3F0] min-h-screen text-[#031f22] font-sans antialiased">
-      <JudgeSidebar />
+      <JudgeSidebar activeSection={activeSection} onNavClick={handleNavClick} />
 
       <main className="ml-64 min-h-screen px-16 py-12 flex flex-col gap-20">
         {error && (
@@ -99,6 +108,18 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
 
         <section id="activity">
           <ActivityAndMentors />
+        </section>
+
+        <section id="feedback" className="pb-12">
+          <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-2">
+            <span className="material-symbols-outlined text-[#012d1d]">forum</span>
+            Feedback
+          </h2>
+          <JudgeFeedbackForm 
+            eventId={eventId} 
+            judgeId={judgeName} 
+            judgeName={judgeName} 
+          />
         </section>
       </main>
     </div>

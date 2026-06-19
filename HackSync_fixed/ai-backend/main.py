@@ -281,6 +281,37 @@ Return ONLY valid JSON. No markdown, no explanation."""}
     except Exception as e:
         return {"config": None, "status": "error", "error": str(e)}
 
+@app.post("/synthesize-feedback")
+def synthesize_feedback(data: dict):
+    open_texts = data.get("openTexts", [])
+    if not open_texts:
+        return {"summary": "No open-text feedback to synthesize."}
+        
+    texts_str = "\n".join([f"- {item.get('text', '')}" for item in open_texts])
+    
+    prompt = f"""You are analyzing open-text feedback from a hackathon.
+Read the following feedback comments from participants and judges.
+Extract and summarize the top 3 themes. For each theme, provide a short title and a 1-sentence description including roughly how many people mentioned it (e.g., "3 mentioned...").
+Do NOT use markdown bold/italics. Just plain text.
+
+Feedback:
+{texts_str}
+
+Format:
+1. Theme Title — Description
+2. Theme Title — Description
+3. Theme Title — Description"""
+
+    try:
+        response = client.chat.completions.create(
+            model="openai/gpt-4o-mini", 
+            messages=[{"role": "user", "content": prompt}]
+        )
+        result = response.choices[0].message.content.strip()
+        return {"summary": result}
+    except Exception as e:
+        return {"summary": f"Failed to synthesize feedback: {str(e)}"}
+
 # ═══════════════════════════════════════════════
 # STAGE MANAGEMENT (proxies to Node/PostgreSQL via frontend)
 # ═══════════════════════════════════════════════

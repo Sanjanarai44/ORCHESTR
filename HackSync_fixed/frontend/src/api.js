@@ -170,6 +170,13 @@ export const aiApi = {
   mentorInit: (eventId, teamId, participantId) => aiRequest(`/ai-mentor/init?event_id=${eventId}&team_id=${teamId}&participant_id=${participantId}`),
   mentorMessage: (data) => aiRequest('/ai-mentor', { method: 'POST', body: JSON.stringify(data) }),
   mentorContext: (data) => aiRequest('/ai-mentor/context', { method: 'POST', body: JSON.stringify(data) }),
+  synthesizeFeedback: (openTexts) => aiRequest('/synthesize-feedback', { method: 'POST', body: JSON.stringify({ openTexts }) }),
+};
+
+// ─── Feedback (Node → PostgreSQL) ─────────────────────────────────────────────
+export const feedbackApi = {
+  submit: (data) => nodeRequest('/api/feedback', { method: 'POST', body: JSON.stringify(data) }),
+  getStats: (eventId) => nodeRequest(`/api/admin/feedback/stats?eventId=${eventId}`),
 };
 
 // ─── useApi hook ──────────────────────────────────────────────────────────────

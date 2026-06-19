@@ -19,6 +19,7 @@ model Event {
   participants Participant[]
   teams        Team[]
   githubRepos  GithubRepo[]
+  feedbacks    Feedback[]
 }
 
 model Participant {
@@ -197,4 +198,22 @@ model GithubAnalysis {
   updatedAt DateTime @updatedAt
 
   repo GithubRepo @relation(fields: [repoId], references: [id])
+}
+
+model Feedback {
+  id               String   @id @default(cuid())
+  eventId          String
+  userId           String   // Participant or Judge ID
+  userType         String   // "PARTICIPANT" or "JUDGE"
+  starRating       Int
+  timelineClear    Boolean? // For participant
+  aiMentorUseful   Boolean? // For participant
+  participateAgain Boolean? // For participant
+  criteriaClear    Boolean? // For judge
+  openText         String?  // Hardest part / Suggestions
+  createdAt        DateTime @default(now())
+
+  event            Event    @relation(fields: [eventId], references: [id])
+
+  @@unique([eventId, userId, userType])
 }
