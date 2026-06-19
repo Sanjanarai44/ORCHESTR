@@ -682,19 +682,22 @@ router.get('/pending-approvals', async (req, res) => {
     return res.json({ draftTeams, anomalies, total: draftTeams + anomalies });
   } catch { return res.json({ draftTeams: 0, anomalies: 0, total: 0 }); }
 });
-// GET /api/admin/workflow-status
+// Replace the GET /api/admin/workflow-status handler in adminTeamRoutes.js
+
 router.get('/workflow-status', async (req, res) => {
   const { eventId } = req.query;
   if (!eventId) return res.status(400).json({ success: false });
 
   try {
     const [
+      event,
       participantCount,
       draftTeams,
       publishedTeams,
       evaluations,
       judges,
     ] = await Promise.all([
+      prisma.event.findUnique({ where: { id: eventId } }),
       prisma.participant.count({ where: { eventId } }),
       prisma.team.count({ where: { eventId, status: 'DRAFT' } }),
       prisma.team.count({ where: { eventId, status: 'PUBLISHED' } }),
@@ -707,56 +710,92 @@ router.get('/workflow-status', async (req, res) => {
 
     const teamsEvaluated = new Set(evaluations.map(e => e.teamId)).size;
 
-    let currentStageIndex = 0;
-    if (participantCount > 0) currentStageIndex = 1;
-    if (publishedTeams > 0) currentStageIndex = 2;
-    if (teamsEvaluated > 0) currentStageIndex = 3;
-    if (teamsEvaluated >= publishedTeams && publishedTeams > 0) currentStageIndex = 4;
+    // ── Pull AI-configured stages from event config ──────────────────
+    // event.config is stored as JSON: { stages: ["Registration","Round 1",...], ... }
+    let configuredStages = [];
+    try {
+      const raw = typeof event?.config === 'string' ? JSON.parse(event.config) : event?.config;
+      if (Array.isArray(raw?.stages) && raw.stages.length > 0) {
+        configuredStages = raw.stages;
+      }
+    } catch {}
 
-    const workflowStages = [
-      {
-        key: 'registration',
-        label: 'Registration',
-        status: participantCount > 0 ? 'completed' : 'pending',
-        count: participantCount,
-        detail: `${participantCount} participants registered`,
-      },
-      {
-        key: 'team_formation',
-        label: 'Team Formation',
-        status: publishedTeams > 0 ? 'completed' : draftTeams > 0 ? 'in_progress' : 'pending',
-        count: publishedTeams || draftTeams,
-        detail: publishedTeams > 0
+    // Fallback to defaults if no AI config present
+    if (configuredStages.length === 0) {
+      configuredStages = ['Registration', 'Team Formation', 'Evaluation', 'Finals'];
+    }
+
+    // ── Map each configured stage to a status ────────────────────────
+    // We use position heuristics: first stage = registration,
+    // last stage = finals, middle stages = evaluation rounds
+    const totalStages = configuredStages.length;
+
+    const workflowStages = configuredStages.map((stageName, i) => {
+      const isFirst = i === 0;
+      const isLast = i === totalStages - 1;
+      const isMidLast = i === totalStages - 2;
+
+      let key, status, count, detail;
+
+      if (isFirst) {
+        // Registration stage
+        key = 'registration';
+        status = participantCount > 0 ? 'completed' : 'pending';
+        count = participantCount;
+        detail = `${participantCount} participants registered`;
+      } else if (i === 1 && totalStages > 2) {
+        // Team formation stage (second slot if more than 2 stages)
+        key = 'team_formation';
+        status = publishedTeams > 0 ? 'completed' : draftTeams > 0 ? 'in_progress' : 'pending';
+        count = publishedTeams || draftTeams;
+        detail = publishedTeams > 0
           ? `${publishedTeams} teams published`
           : draftTeams > 0
           ? `${draftTeams} teams pending approval`
-          : 'Not started',
-      },
-      {
-        key: 'evaluation',
-        label: 'Evaluation',
-        status:
-          teamsEvaluated >= publishedTeams && publishedTeams > 0
-            ? 'completed'
-            : teamsEvaluated > 0
-            ? 'in_progress'
-            : 'pending',
-        count: teamsEvaluated,
-        detail: `${teamsEvaluated}/${publishedTeams} teams evaluated`,
-      },
-      {
-        key: 'finals',
-        label: 'Finals',
-        status: currentStageIndex >= 4 ? 'in_progress' : 'pending',
-        count: null,
-        detail: 'Awaiting results',
-      },
-    ];
+          : 'Not started';
+      } else if (isLast) {
+        // Finals / results stage
+        key = 'finals';
+        const finalsStarted = teamsEvaluated >= publishedTeams && publishedTeams > 0;
+        status = finalsStarted ? 'in_progress' : 'pending';
+        count = null;
+        detail = finalsStarted ? 'Results being finalized' : 'Awaiting evaluation';
+      } else {
+        // Middle stages = evaluation rounds
+        // Distribute evaluation progress across these stages
+        const evalStageCount = totalStages - (totalStages > 2 ? 3 : 2); // slots for eval rounds
+        const evalStageIndex = i - (totalStages > 2 ? 2 : 1); // 0-based index within eval rounds
+        const teamsPerSlot = publishedTeams > 0 ? Math.ceil(publishedTeams / Math.max(evalStageCount, 1)) : 0;
+        const threshold = teamsPerSlot * (evalStageIndex + 1);
+
+        key = `evaluation_round_${evalStageIndex + 1}`;
+        if (teamsEvaluated >= threshold) {
+          status = 'completed';
+        } else if (teamsEvaluated > teamsPerSlot * evalStageIndex) {
+          status = 'in_progress';
+        } else {
+          status = 'pending';
+        }
+        count = teamsEvaluated;
+        detail = `${teamsEvaluated}/${publishedTeams} teams evaluated`;
+      }
+
+      return { key, label: stageName, status, count, detail };
+    });
+
+    // ── Compute current stage index ──────────────────────────────────
+    let currentStageIndex = 0;
+    for (let i = workflowStages.length - 1; i >= 0; i--) {
+      if (workflowStages[i].status === 'completed' || workflowStages[i].status === 'in_progress') {
+        currentStageIndex = i;
+        break;
+      }
+    }
 
     return res.json({
       success: true,
       currentStageIndex,
-      totalStages: workflowStages.length,
+      totalStages,
       stages: workflowStages,
       meta: { participantCount, draftTeams, publishedTeams, judges, teamsEvaluated },
     });
