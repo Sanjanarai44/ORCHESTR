@@ -129,9 +129,7 @@ export default function AdminDashboard({ eventConfig, eventId, organizer, onBack
       {activeTab === "Profile" && (
   <ProfileTab organizer={organizer} onLogout={onLogout} />
 )}
-      {activeTab === "Profile" && (
-  <ProfileTab organizer={organizer} onLogout={onLogout} />
-)}
+      
       {activeTab === "Participants" && (
         <ParticipantsTab eventConfig={eventConfig} eventId={eventId} />
       )}
