@@ -18,7 +18,7 @@ export default function OrganizerLogin({ onLogin }) {
       const body = mode === "login"
         ? { email: form.email, password: form.password }
         : { name: form.name, email: form.email, password: form.password };
-      const res = await fetch(`${import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com'}${endpoint}`, {
+      const res = await fetch(`${import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com'}${endpoint}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -26,6 +26,9 @@ export default function OrganizerLogin({ onLogin }) {
       const data = await res.json();
       if (data.success) {
         localStorage.setItem("organizer", JSON.stringify(data.organizer));
+        if (data.token) {
+          localStorage.setItem("adminToken", data.token);
+        }
         onLogin(data.organizer);
       } else {
         setError(data.error || "Something went wrong.");
@@ -50,7 +53,7 @@ export default function OrganizerLogin({ onLogin }) {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#012d1d] mb-4 shadow-xl">
             <span className="material-symbols-outlined text-[#a5d0b9] text-[28px]">terminal</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-[#012d1d]">Wise@TI</h1>
+          <h1 className="text-3xl font-extrabold text-[#012d1d]">ORCHESTR</h1>
           <p className="text-sm text-[#5a6672] mt-1">Event Orchestration Platform</p>
         </div>
 
@@ -100,6 +103,7 @@ export default function OrganizerLogin({ onLogin }) {
             </div>
           )}
 
+          {/* Submit button */}
           <button onClick={handleSubmit} disabled={loading}
             className="w-full mt-6 bg-[#012d1d] hover:bg-[#023d29] disabled:opacity-50 text-white font-bold py-4 rounded-2xl transition-all flex items-center justify-center gap-2 shadow-lg">
             {loading
@@ -107,6 +111,28 @@ export default function OrganizerLogin({ onLogin }) {
               : <span className="material-symbols-outlined text-[18px]">{mode === "login" ? "login" : "person_add"}</span>}
             {loading ? "Please wait..." : mode === "login" ? "Sign In to Platform" : "Create Account"}
           </button>
+
+          {/* Divider */}
+          <div className="flex items-center my-6">
+            <div className="flex-1 h-px bg-[#E2DDD8]" />
+            <span className="px-4 text-sm text-[#8A8A8A] font-medium">OR</span>
+            <div className="flex-1 h-px bg-[#E2DDD8]" />
+          </div>
+
+          {/* Google button */}
+          <a
+            href={`${import.meta.env.VITE_NODE_URL || "http://localhost:5000"}/auth/google`}
+            className="w-full border border-[#E2DDD8] rounded-2xl py-4 px-5 flex items-center justify-center gap-4 bg-white hover:bg-[#FAFAF9] transition-all shadow-sm"
+          >
+            <img
+              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
+              alt="Google"
+              className="w-6 h-6"
+            />
+            <span className="font-semibold text-[#012d1d] text-lg">
+              Continue with Google
+            </span>
+          </a>
         </div>
       </div>
     </div>

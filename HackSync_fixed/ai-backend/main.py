@@ -8,8 +8,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from openai import OpenAI
 from dotenv import load_dotenv
-import os, json, sqlite3, re
+import os, json, sqlite3, re, httpx
 from typing import Union, Optional
+
+NODE_URL = os.getenv("NODE_URL", "https://orchestr-backend-8u5k.onrender.com")
 
 # Initialize Mentor History DB
 def init_mentor_db():
@@ -71,34 +73,30 @@ def home():
     return {"message": "ORCHESTR AI Backend running", "port": 8000, "purpose": "AI/LLM only"}
 
 # ═══════════════════════════════════════════════
-# ORGANIZER AUTH (simple - stored in localStorage)
+# ORGANIZER AUTH — proxied to Node/PostgreSQL (real accounts, OAuth, profile)
 # ═══════════════════════════════════════════════
 
 @app.post("/auth/login")
-def login(data: dict):
-    """Demo auth — in production replace with real DB check via Node"""
-    email = data.get("email", "").strip().lower()
-    password = data.get("password", "")
-    # Demo credentials
-    if email == "admin@wiseti.com" and password == "admin123":
-        return {"success": True, "organizer": {"id": 1, "name": "Event Admin", "email": email}}
-    return {"success": False, "error": "Invalid email or password"}
+async def login(data: dict):
+    try:
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            res = await http_client.post(f"{NODE_URL}/auth/login", json=data)
+            return res.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @app.post("/auth/register")
-def register(data: dict):
-    name = data.get("name", "").strip()
-    email = data.get("email", "").strip().lower()
-    if not name or not email:
-        return {"success": False, "error": "Name and email required"}
-    # Return success with id=1 for demo
-    return {"success": True, "organizer": {"id": 1, "name": name, "email": email}}
+async def register(data: dict):
+    try:
+        async with httpx.AsyncClient(timeout=10) as http_client:
+            res = await http_client.post(f"{NODE_URL}/auth/register", json=data)
+            return res.json()
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 # ═══════════════════════════════════════════════
 # EVENTS — stored in PostgreSQL via Node backend
 # ═══════════════════════════════════════════════
-import httpx
-
-NODE_URL = os.getenv("NODE_URL", "https://orchestr-backend-8u5k.onrender.com")
 
 @app.get("/events")
 async def get_events(organizer_id: str = "1"):
@@ -136,7 +134,6 @@ async def delete_event(event_id: str):
             return res.json()
     except Exception as e:
         return {"success": False, "error": str(e)}
-
 # ═══════════════════════════════════════════════
 # AI ENDPOINTS
 # ═══════════════════════════════════════════════
