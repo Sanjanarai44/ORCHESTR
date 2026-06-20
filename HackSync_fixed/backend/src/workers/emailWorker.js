@@ -15,19 +15,12 @@
 import 'dotenv/config';
 import { Worker } from 'bullmq';
 import sgMail from '@sendgrid/mail';
-import IORedis from 'ioredis';
+import sharedRedis from '../config/sharedRedis.js';
 import prisma from '../config/prisma.js';
 
 // ── SendGrid setup ────────────────────────────────────────────────────────────
 sgMail.setApiKey(process.env.SENDGRID_API_KEY || '');
 const FROM_EMAIL = process.env.SENDGRID_FROM_EMAIL || 'noreply@algorythm.com';
-// ── Redis connection ──────────────────────────────────────────────────────────
-const connection = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
-});
-
-connection.on("error", (e) => console.warn("[EmailWorker] Redis error:", e.message));
 // ── Email template builders ───────────────────────────────────────────────────
 function buildMagicLinkEmail(data) {
   const { judgeName, magicLink, expiryHours = 48, eventName = 'AlgoRythm EventFlow' } = data;
@@ -260,8 +253,9 @@ const emailWorker = new Worker(
     return { sent: true };
   },
   {
-    connection,
-    concurrency: 5,
+    connection: sharedRedis,
+    concurrency: 2,        // 2 simultaneous emails is plenty for a hackathon
+    stalledInterval: 60000, // check stalled jobs every 60s instead of default 30s
   }
 );
 

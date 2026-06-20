@@ -8,7 +8,6 @@ import passport from "passport";
 
 // Workers — wrap in try/catch so a Redis crash doesn't kill the server
 try { await import('./workers/emailWorker.js'); } catch(e) { console.warn('emailWorker failed to load:', e.message); }
-try { await import('./workers/teamWorker.js'); } catch(e) { console.warn('teamWorker failed to load:', e.message); }
 try { await import('./workers/anomalyWorker.js'); } catch(e) { console.warn('anomalyWorker failed to load:', e.message); }
 
 import uploadRoutes from "./routes/uploadRoutes.js";

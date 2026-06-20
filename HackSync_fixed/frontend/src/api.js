@@ -77,6 +77,7 @@ export const adminTeamsApi = {
       status: "PUBLISHED"
     }),
   }),
+  sendTeamEmail: (teamId) => nodeRequest(`/api/admin/send-team-emails/${teamId}`, { method: 'POST' }),
 
 deleteTeam: (teamId) =>
   nodeRequest(`/api/admin/teams/${teamId}`, {

@@ -3,18 +3,10 @@
  * Shared queue reference used by both the worker and the helper.
  */
 import { Queue } from 'bullmq';
-import IORedis from 'ioredis';
-
-const connection = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, { maxRetriesPerRequest: null })
-  : new IORedis({
-      host: process.env.REDIS_HOST || 'localhost',
-      port: parseInt(process.env.REDIS_PORT || '6379'),
-      maxRetriesPerRequest: null,
-    });
+import sharedRedis from '../config/sharedRedis.js';
 
 export const emailQueue = new Queue('email_queue', {
-  connection,
+  connection: sharedRedis,
   defaultJobOptions: {
     attempts: 3,
     backoff: {

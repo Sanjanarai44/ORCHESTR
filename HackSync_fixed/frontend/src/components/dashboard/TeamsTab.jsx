@@ -591,6 +591,49 @@ export default function TeamsTab({ eventId }) {
                     </button>
                   </div>
                 )}
+
+                {team.status === "PUBLISHED" && (
+                  <div className="flex justify-end gap-2 pt-3 border-t border-stone-200">
+                    <button
+                      onClick={async () => {
+                        try {
+                          setActionLoading(true);
+                          await adminTeamsApi.sendTeamEmail(team.id);
+                          setSuccess(`Portal links queued for ${team.name}!`);
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                      title="Send Portal Link"
+                      disabled={actionLoading}
+                      className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">forward_to_inbox</span>
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (!window.confirm(`Delete ${team.name}?`)) return;
+                        try {
+                          setActionLoading(true);
+                          await adminTeamsApi.deleteTeam(team.id);
+                          await loadTeams(statusFilter);
+                          setSuccess(`${team.name} deleted.`);
+                        } catch (err) {
+                          setError(err.message);
+                        } finally {
+                          setActionLoading(false);
+                        }
+                      }}
+                      title="Delete Team"
+                      disabled={actionLoading}
+                      className="p-1.5 rounded-lg text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50 flex items-center justify-center"
+                    >
+                      <span className="material-symbols-outlined text-[18px]">delete</span>
+                    </button>
+                  </div>
+                )}
               </article>
             ))}
           </section>

@@ -1,12 +1,5 @@
 import { Worker } from "bullmq";
-import IORedis from "ioredis";
-
-const connection = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
-});
-
-connection.on("error", (e) => console.warn("[TeamWorker] Redis error:", e.message));
+import sharedRedis from "../config/sharedRedis.js";
 
 const worker = new Worker(
   "teamQueue",
@@ -15,7 +8,7 @@ const worker = new Worker(
     await new Promise((resolve) => setTimeout(resolve, 3000));
     console.log("Job Completed");
   },
-  { connection }
+  { connection: sharedRedis }
 );
 
 worker.on("completed", (job) => console.log(`Completed job ${job.id}`));

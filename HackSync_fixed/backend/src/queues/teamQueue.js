@@ -1,12 +1,6 @@
 import { Queue } from "bullmq";
-import IORedis from "ioredis";
-
-const connection = new IORedis({
-  host: process.env.REDIS_HOST,
-  port: process.env.REDIS_PORT,
-  maxRetriesPerRequest: null,
-});
+import sharedRedis from "../config/sharedRedis.js";
 
 export const teamQueue = new Queue("teamQueue", {
-  connection,
+  connection: sharedRedis,
 });

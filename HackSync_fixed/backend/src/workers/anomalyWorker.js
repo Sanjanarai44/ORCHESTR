@@ -1,13 +1,6 @@
 import { Worker } from 'bullmq';
-import IORedis from 'ioredis';
+import sharedRedis from '../config/sharedRedis.js';
 import prisma from '../config/prisma.js';
-
-const connection = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: null,
-  tls: process.env.REDIS_URL?.startsWith("rediss://") ? {} : undefined,
-});
-
-connection.on("error", (e) => console.warn("[AnomalyWorker] Redis error:", e.message));
 const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
 
 const anomalyWorker = new Worker(
@@ -222,8 +215,9 @@ const anomalyWorker = new Worker(
     }
   },
   {
-    connection,
-    concurrency: 2,
+    connection: sharedRedis,
+    concurrency: 1,        // anomaly scans run one at a time — no need for parallelism
+    stalledInterval: 60000, // check stalled jobs every 60s instead of default 30s
   }
 );
 

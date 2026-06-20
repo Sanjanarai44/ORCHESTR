@@ -102,15 +102,7 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
           />
         </section>
 
-        <section id="resources">
-          <JudgeResources />
-        </section>
-
-        <section id="activity">
-          <ActivityAndMentors />
-        </section>
-
-        <section id="feedback" className="pb-12">
+        <section id="feedback">
           <h2 className="text-xl font-bold text-stone-900 mb-6 flex items-center gap-2">
             <span className="material-symbols-outlined text-[#012d1d]">forum</span>
             Feedback
@@ -120,6 +112,14 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
             judgeId={judgeName} 
             judgeName={judgeName} 
           />
+        </section>
+
+        <section id="resources">
+          <JudgeResources />
+        </section>
+
+        <section id="activity" className="pb-12">
+          <ActivityAndMentors />
         </section>
       </main>
     </div>
