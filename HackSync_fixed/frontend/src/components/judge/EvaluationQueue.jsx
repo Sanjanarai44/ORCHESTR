@@ -1,257 +1,209 @@
 import React, { useState } from 'react';
-import { aiApi } from '../../api';
-const statusBadge = (scored, active) => {
-  if (scored) return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: '#eaf3de', color: '#3b6d11',
-      fontSize: 12, fontWeight: 500,
-      padding: '3px 10px', borderRadius: 20,
-      border: '0.5px solid #c0dd97'
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#639922', display: 'inline-block' }} />
-      Scored
-    </span>
-  );
-  if (active) return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: '#e6f1fb', color: '#185fa5',
-      fontSize: 12, fontWeight: 500,
-      padding: '3px 10px', borderRadius: 20,
-      border: '0.5px solid #b5d4f4'
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#378add', display: 'inline-block' }} />
-      In Scoring
-    </span>
-  );
-  return (
-    <span style={{
-      display: 'inline-flex', alignItems: 'center', gap: 5,
-      background: '#f1efe8', color: '#5f5e5a',
-      fontSize: 12, fontWeight: 500,
-      padding: '3px 10px', borderRadius: 20,
-      border: '0.5px solid #d3d1c7'
-    }}>
-      <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#888780', display: 'inline-block' }} />
-      Pending
-    </span>
-  );
+
+const statusConfig = {
+  scored: {
+    bg: 'bg-[#bee8dc]',
+    text: 'text-[#012d1d]',
+    dot: 'bg-[#012d1d]',
+    label: 'Scored',
+  },
+  active: {
+    bg: 'bg-[#d6f3f7]',
+    text: 'text-[#1a5f7a]',
+    dot: 'bg-[#378add]',
+    label: 'In Review',
+  },
+  pending: {
+    bg: 'bg-stone-100',
+    text: 'text-stone-500',
+    dot: 'bg-stone-400',
+    label: 'Pending',
+  },
 };
+
+function StatusBadge({ scored, active }) {
+  const cfg = scored ? statusConfig.scored : active ? statusConfig.active : statusConfig.pending;
+  return (
+    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.bg} ${cfg.text}`}>
+      <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} />
+      {cfg.label}
+    </span>
+  );
+}
 
 export default function EvaluationQueue({
   teams = [],
   selectedTeam,
   teamScores = {},
   onSelectTeam,
-  onSubmitScore
+  onRefresh,
 }) {
   const [search, setSearch] = useState('');
-  const [score, setScore] = useState('');
-  const [judgeName, setJudgeName] = useState('');
-  const [rubric, setRubric] = useState(null);
-  const [rubricLoading, setRubricLoading] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState('');
 
   const filteredTeams = teams.filter((t) =>
     t.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const isScored = (teamId) => teamScores?.[teamId]?.length > 0;
+  const isScored = (team) => team.scored || (teamScores?.[team.id]?.length > 0);
 
-  const getScores = (teamId) => teamScores?.[teamId] || [];
-
-  const getAverage = (teamId) => {
-    const scores = getScores(teamId);
-    if (!scores.length) return null;
-    return (scores.reduce((s, x) => s + x.score, 0) / scores.length).toFixed(1);
+  // Real score from submitted scores — never mock
+  const getMyScore = (team) => {
+    if (team.submittedScores) {
+      const { code, innovation, presentation } = team.submittedScores;
+      if (code != null && innovation != null && presentation != null) {
+        return ((code + innovation + presentation) / 3).toFixed(1);
+      }
+    }
+    const scores = teamScores?.[team.id];
+    if (scores?.length > 0 && scores[0]?.score != null) {
+      return scores[0].score.toFixed(1);
+    }
+    return null;
   };
 
-  const getAnomalies = (teamId) => {
-    const scores = getScores(teamId);
-    if (scores.length < 2) return [];
-    const avg = scores.reduce((s, x) => s + x.score, 0) / scores.length;
-    return scores.filter(s => Math.abs(s.score - avg) > 2.0);
-  };
-
-  const handleSelectTeam = async (team) => {
-    onSelectTeam(team);
-    setRubric(null);
-    setSubmitError('');
-    setScore('');
-
-    setRubricLoading(true);
-    try {
-      const data = await aiApi.generateRubric({
-        team_name: team.name,
-        challenge: team.rationale || team.scope || 'Hackathon project'
-      });
-      setRubric(data.rubric);
-    } catch {
-      setRubric(null);
-    }
-    setRubricLoading(false);
-  };
-
-  const handleSubmit = async () => {
-    if (!selectedTeam || !score || !judgeName.trim()) {
-      setSubmitError('Please enter your name and a score.');
-      return;
-    }
-    const n = Number(score);
-    if (isNaN(n) || n < 0 || n > 10) {
-      setSubmitError('Score must be between 0 and 10.');
-      return;
-    }
-    setSubmitting(true);
-    setSubmitError('');
-    try {
-      await onSubmitScore?.(judgeName.trim(), n);
-      setScore('');
-    } catch {
-      setSubmitError('Submission failed. Try again.');
-    }
-    setSubmitting(false);
-  };
-
-  const anomaliesForSelected = selectedTeam ? getAnomalies(selectedTeam.id) : [];
+  const scoredCount = teams.filter((t) => isScored(t)).length;
+  const totalCount = teams.length;
+  const percent = totalCount ? Math.round((scoredCount / totalCount) * 100) : 0;
 
   return (
-    <div style={{
-      background: 'var(--color-background-primary)',
-      borderRadius: 16,
-      border: '0.5px solid var(--color-border-tertiary)',
-      overflow: 'hidden'
-    }}>
-
-      {/* HEADER */}
-      <div style={{
-        padding: '28px 32px',
-        borderBottom: '0.5px solid var(--color-border-tertiary)',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        gap: 16,
-        flexWrap: 'wrap'
-      }}>
+    <div className="space-y-6">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h3 style={{ fontSize: 20, fontWeight: 500, margin: 0, color: 'var(--color-text-primary)' }}>
+          <h2 className="text-2xl font-bold text-[#012d1d] tracking-tight flex items-center gap-2">
+            <span className="material-symbols-outlined text-[24px]">groups</span>
             Evaluation Queue
-          </h3>
-          <p style={{ fontSize: 14, color: 'var(--color-text-secondary)', margin: '4px 0 0' }}>
-            Primary scoring dashboard for your assigned teams
+          </h2>
+          <p className="text-sm text-[#414844] mt-1">
+            Your assigned teams — score each one before the deadline
           </p>
         </div>
+        <button
+          onClick={onRefresh}
+          className="flex items-center gap-1.5 px-4 py-2 border border-[#717973] rounded-lg text-sm font-medium text-[#031f22] hover:bg-[#d1edf1] transition-colors"
+        >
+          <span className="material-symbols-outlined text-[16px]">refresh</span>
+          Refresh
+        </button>
+      </div>
 
-        <div style={{ position: 'relative' }}>
-          <input
-            style={{
-              padding: '8px 12px 8px 34px',
-              border: '0.5px solid var(--color-border-secondary)',
-              borderRadius: 8,
-              fontSize: 14,
-              background: 'var(--color-background-secondary)',
-              color: 'var(--color-text-primary)',
-              outline: 'none',
-              width: 200
-            }}
-            placeholder="Search teams..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
-          <svg style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', opacity: 0.4 }}
-            width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
-          </svg>
+
+      {/* Team list */}
+      <div className="bg-white rounded-2xl border border-[#012d1d]/10 overflow-hidden">
+        {/* Table header row with search */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-[#012d1d]/8 bg-[#F5F3F0]">
+          <p className="text-xs font-bold uppercase tracking-widest text-[#414844]">
+            {filteredTeams.length} Teams
+          </p>
+          <div className="relative">
+            <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[16px] text-[#414844]">
+              search
+            </span>
+            <input
+              type="text"
+              placeholder="Search teams…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-3 py-2 text-sm bg-white border border-[#717973]/40 rounded-lg text-[#031f22] placeholder-[#414844]/60 focus:outline-none focus:ring-2 focus:ring-[#012d1d]/30 w-52 transition"
+            />
+          </div>
+        </div>
+
+        {/* Team rows */}
+        <div className="divide-y divide-[#012d1d]/6">
+          {filteredTeams.length === 0 ? (
+            <div className="py-16 text-center">
+              <span className="material-symbols-outlined text-4xl text-[#414844]/40 block mb-2">search_off</span>
+              <p className="text-sm text-[#414844]">No teams match your search</p>
+            </div>
+          ) : (
+            filteredTeams.map((team, idx) => {
+              const scored = isScored(team);
+              const active = selectedTeam?.id === team.id;
+              const myScore = getMyScore(team);
+              const members = team.members || [];
+
+              return (
+                <div
+                  key={team.id}
+                  className={`flex items-center gap-4 px-6 py-4 transition-colors ${
+                    active ? 'bg-[#d6f3f7]' : scored ? 'bg-[#F5F3F0]/60' : 'hover:bg-[#F5F3F0]/80'
+                  }`}
+                >
+                  {/* Index */}
+                  <div className="w-7 h-7 rounded-full bg-[#012d1d]/8 flex items-center justify-center flex-shrink-0">
+                    <span className="text-xs font-bold text-[#012d1d]">{idx + 1}</span>
+                  </div>
+
+                  {/* Team info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-bold text-[#012d1d] truncate">{team.name}</p>
+                      {active && (
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 bg-[#012d1d] text-white rounded">
+                          ACTIVE
+                        </span>
+                      )}
+                    </div>
+                    {members.length > 0 && (
+                      <p className="text-xs text-[#414844] mt-0.5 truncate">
+                        {members.slice(0, 3).map((m) => m.name).join(' · ')}
+                        {members.length > 3 && ` +${members.length - 3}`}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* My score — real only, never mocked */}
+                  <div className="w-24 text-center flex-shrink-0">
+                    {myScore != null ? (
+                      <div>
+                        <p className="text-lg font-bold text-[#012d1d]">{myScore}</p>
+                        <p className="text-[10px] text-[#414844] font-medium">/ 10 · your score</p>
+                      </div>
+                    ) : (
+                      <span className="text-sm text-[#414844]/50">—</span>
+                    )}
+                  </div>
+
+                  {/* Status */}
+                  <div className="w-28 flex justify-center flex-shrink-0">
+                    <StatusBadge scored={scored} active={active} />
+                  </div>
+
+                  {/* Action */}
+                  <div className="flex-shrink-0">
+                    <button
+                      onClick={() => onSelectTeam(team)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                        active
+                          ? 'bg-[#012d1d] text-white cursor-default'
+                          : scored
+                          ? 'border border-[#717973] text-[#031f22] hover:bg-[#d1edf1]'
+                          : 'bg-[#012d1d] text-white hover:bg-[#014a31]'
+                      }`}
+                    >
+                      {active ? 'Scoring…' : scored ? 'Re-score' : 'Evaluate'}
+                    </button>
+                  </div>
+                </div>
+              );
+            })
+          )}
         </div>
       </div>
 
-      {/* TABLE */}
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
-          <thead>
-            <tr style={{ background: 'var(--color-background-secondary)' }}>
-              {['Team', 'Scope', 'Avg Score', 'Status', 'Action'].map(h => (
-                <th key={h} style={{
-                  padding: '10px 24px', textAlign: h === 'Action' ? 'right' : 'left',
-                  fontSize: 12, fontWeight: 500,
-                  color: 'var(--color-text-secondary)',
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase'
-                }}>
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filteredTeams.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{
-                  padding: '40px 24px', textAlign: 'center',
-                  color: 'var(--color-text-secondary)', fontSize: 14
-                }}>
-                  No teams found
-                </td>
-              </tr>
-            ) : filteredTeams.map((team) => {
-              const active = selectedTeam?.id === team.id;
-              const scored = isScored(team.id);
-              const avg = getAverage(team.id);
-
-              return (
-                <tr key={team.id} style={{
-                  borderTop: '0.5px solid var(--color-border-tertiary)',
-                  background: active ? 'var(--color-background-info)' : 'transparent',
-                  transition: 'background 0.15s'
-                }}>
-                  <td style={{ padding: '14px 24px', fontWeight: 500, color: 'var(--color-text-primary)' }}>
-                    {team.name}
-                  </td>
-                  <td style={{
-                    padding: '14px 24px', color: 'var(--color-text-secondary)',
-                    maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'
-                  }}>
-                    {team.scope || team.rationale || '—'}
-                  </td>
-                  <td style={{ padding: '14px 24px', color: 'var(--color-text-primary)', fontWeight: avg ? 500 : 400 }}>
-                    {avg ? `${avg} / 10` : <span style={{ color: 'var(--color-text-secondary)' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '14px 24px' }}>
-                    {statusBadge(scored, active)}
-                  </td>
-                  <td style={{ padding: '14px 24px', textAlign: 'right' }}>
-                    <button
-                      onClick={() => handleSelectTeam(team)}
-                      style={{
-                        padding: '6px 16px',
-                        fontSize: 13, fontWeight: 500,
-                        border: active ? '0.5px solid #378add' : '0.5px solid var(--color-border-secondary)',
-                        borderRadius: 8,
-                        background: active ? '#e6f1fb' : 'transparent',
-                        color: active ? '#185fa5' : 'var(--color-text-primary)',
-                        cursor: 'pointer'
-                      }}
-                    >
-                      {active ? 'Scoring' : scored ? 'Re-score' : 'Start'}
-                    </button>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-
-      {/* SCORING PANEL REMOVED - Navigates to JudgeEvaluate */}
-
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
-        }
-      `}</style>
+      {/* Done callout */}
+      {scoredCount === totalCount && totalCount > 0 && (
+        <div className="bg-[#bee8dc] border border-[#012d1d]/20 rounded-2xl px-6 py-5 flex items-center gap-4">
+          <span className="material-symbols-outlined text-[#012d1d] text-3xl">check_circle</span>
+          <div>
+            <p className="text-base font-bold text-[#012d1d]">All teams evaluated!</p>
+            <p className="text-sm text-[#414844] mt-0.5">
+              You've submitted scores for all {totalCount} assigned teams. Thank you!
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

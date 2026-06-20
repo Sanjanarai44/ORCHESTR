@@ -64,62 +64,74 @@ export default function ScoringPanel({ team, judgeToken, onSubmitted }) {
   };
 
   return (
-    <div className="space-y-6">
-      {CRITERIA.map((criterion) => {
-        const value = scores[criterion.key];
-        const isTouched = touched[criterion.key];
+    <div className="bg-white rounded-[2rem] shadow-2xl border border-[#E2DDD8] p-8 space-y-8 relative overflow-hidden">
+      <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-[#012d1d] via-[#a5d0b9] to-[#012d1d]" />
+      
+      <div className="space-y-7">
+        {CRITERIA.map((criterion) => {
+          const value = scores[criterion.key];
+          const isTouched = touched[criterion.key];
 
-        return (
-          <div key={criterion.key} className="space-y-3">
-            <div>
-              <p className="text-sm font-bold text-stone-900 dark:text-white">{criterion.label}</p>
-              <p className="text-xs text-stone-500 mt-0.5 leading-relaxed">{criterion.description}</p>
-            </div>
-            <div className="flex items-center gap-4">
-              <input
-                id={`slider-${criterion.key}`}
-                type="range"
-                min={1}
-                max={10}
-                step={1}
-                value={isTouched ? value : 1}
-                onChange={(e) => handleSliderChange(criterion.key, e.target.value)}
-                className="flex-1 h-2 appearance-none bg-stone-200 rounded-full cursor-pointer accent-stone-900"
-              />
-              <div
-                className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl font-bold border-2 transition-all ${
-                  isTouched
-                    ? 'border-stone-900 bg-stone-900 text-white'
-                    : 'border-stone-200 bg-stone-50 text-stone-300'
-                }`}
-              >
-                {isTouched ? value : '—'}
+          return (
+            <div key={criterion.key} className="space-y-4 group">
+              <div>
+                <p className="text-sm font-extrabold text-[#012d1d] tracking-wide flex items-center gap-2">
+                  {criterion.label}
+                  {isTouched && <span className="material-symbols-outlined text-[#a5d0b9] text-[16px]">check_circle</span>}
+                </p>
+                <p className="text-[13px] text-[#6b7280] mt-1.5 leading-relaxed font-medium">{criterion.description}</p>
               </div>
-            </div>
-            <div className="flex justify-between px-0.5">
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <span
-                  key={n}
-                  className={`text-[9px] font-semibold ${
-                    isTouched && n <= value ? 'text-stone-700' : 'text-stone-300'
+              <div className="flex items-center gap-6">
+                <input
+                  id={`slider-${criterion.key}`}
+                  type="range"
+                  min={1}
+                  max={10}
+                  step={1}
+                  value={isTouched ? value : 1}
+                  onChange={(e) => handleSliderChange(criterion.key, e.target.value)}
+                  className="flex-1 h-3 appearance-none bg-[#F0EDE9] rounded-full cursor-pointer accent-[#012d1d] hover:bg-[#E2DDD8] transition-colors shadow-inner"
+                />
+                <div
+                  className={`w-14 h-14 rounded-2xl flex items-center justify-center text-2xl font-black transition-all shadow-sm flex-shrink-0 ${
+                    isTouched
+                      ? 'bg-gradient-to-br from-[#012d1d] to-[#024a31] text-[#a5d0b9] ring-4 ring-[#012d1d]/10 transform scale-105'
+                      : 'border-2 border-[#E2DDD8] bg-[#FAFAF9] text-[#b0bec5]'
                   }`}
                 >
-                  {n}
-                </span>
-              ))}
+                  {isTouched ? value : '—'}
+                </div>
+              </div>
+              <div className="flex justify-between px-2">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
+                  <span
+                    key={n}
+                    className={`text-[11px] font-extrabold ${
+                      isTouched && n <= value ? 'text-[#012d1d]' : 'text-[#b0bec5]'
+                    }`}
+                  >
+                    {n}
+                  </span>
+                ))}
+              </div>
             </div>
-          </div>
-        );
-      })}
+          );
+        })}
+      </div>
 
-      <div className="space-y-2">
-        <p className="text-sm font-semibold text-stone-600">Overall impression (optional)</p>
+      <div className="w-full h-px bg-[#E2DDD8]" />
+
+      <div className="space-y-4">
+        <p className="text-sm font-extrabold text-[#012d1d] tracking-wide">Overall Impression (Optional)</p>
         <StarRating value={starRating} onChange={setStarRating} />
       </div>
 
-      <div className="space-y-2">
-        <label htmlFor="eval-comment" className="text-sm font-bold text-stone-900">
-          Evaluation notes <span className="text-stone-400 font-normal">(required, minimum 20 characters)</span>
+      <div className="space-y-3">
+        <label htmlFor="eval-comment" className="text-sm font-extrabold text-[#012d1d] tracking-wide flex justify-between items-end">
+          <span>Evaluation Notes</span>
+          <span className={`text-[10px] font-bold uppercase tracking-widest ${commentValid ? 'text-[#a5d0b9]' : 'text-[#b0bec5]'}`}>
+            {comment.trim().length} / 20 min
+          </span>
         </label>
         <textarea
           id="eval-comment"
@@ -127,45 +139,48 @@ export default function ScoringPanel({ team, judgeToken, onSubmitted }) {
           onChange={(e) => setComment(e.target.value)}
           onBlur={() => setCommentTouched(true)}
           rows={4}
-          placeholder="Share your detailed evaluation notes here…"
-          className={`w-full resize-none rounded-xl border p-3 text-sm text-stone-700 placeholder-stone-300 focus:outline-none focus:ring-2 focus:ring-stone-900 transition-all ${
+          placeholder="Share your detailed evaluation notes here… What stood out? What could be improved?"
+          className={`w-full resize-none rounded-2xl border-2 p-5 text-sm text-[#031f22] font-medium placeholder-[#b0bec5] focus:outline-none focus:ring-0 transition-all ${
             (submitAttempted || commentTouched) && !commentValid
-              ? 'border-red-400 focus:ring-red-400'
-              : 'border-stone-200'
+              ? 'border-red-300 bg-red-50/50'
+              : 'border-[#E2DDD8] bg-[#FAFAF9] focus:border-[#012d1d] focus:bg-white'
           }`}
         />
-        <p className={`text-xs font-semibold transition-colors ${commentValid ? 'text-emerald-600' : 'text-stone-400'}`}>
-          {comment.trim().length} / 20 minimum{commentValid ? ' ✓' : ''}
-        </p>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-3 pt-2">
         <button
           id="submit-scores-btn"
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
-          className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all flex items-center justify-center gap-2 ${
+          className={`w-full py-4 rounded-2xl text-[15px] font-extrabold tracking-wide transition-all flex items-center justify-center gap-2 shadow-lg ${
             canSubmit
-              ? 'bg-stone-900 text-white hover:bg-stone-800 active:scale-[0.99]'
-              : 'bg-stone-100 text-stone-400 cursor-not-allowed'
+              ? 'bg-[#012d1d] text-white hover:bg-[#024a31] hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:shadow-md'
+              : 'bg-[#F0EDE9] text-[#9aa5ae] cursor-not-allowed shadow-none'
           }`}
         >
           {submitting ? (
             <>
-              <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />
+              <div className="w-5 h-5 border-2 border-[#a5d0b9]/30 border-t-[#a5d0b9] rounded-full animate-spin" />
               Submitting…
             </>
           ) : (
-            `Submit scores for ${team?.name || 'this team'}`
+            <>
+              <span className="material-symbols-outlined text-[20px] text-[#a5d0b9]">publish</span>
+              Submit Evaluation for {team?.name || 'this team'}
+            </>
           )}
         </button>
-        <p className="text-xs text-stone-400 text-center">Scores can be updated before deadline</p>
+        <div className="text-center pt-2">
+          <p className="text-[10px] font-extrabold text-[#9aa5ae] uppercase tracking-widest">Scores can be updated before deadline</p>
+        </div>
         {submitAttempted && !canSubmit && (
-          <p className="text-xs text-red-500 text-center font-medium">
+          <div className="bg-red-50 text-red-600 text-[13px] font-bold p-3.5 rounded-xl flex items-center gap-2 justify-center mt-4 border border-red-100 shadow-sm">
+            <span className="material-symbols-outlined text-[18px]">error</span>
             {!allSlidersMoved
-              ? 'Please move all three scoring sliders before submitting.'
-              : 'Please add at least 20 characters to your evaluation notes.'}
-          </p>
+              ? 'Please move all three scoring sliders.'
+              : 'Please add at least 20 characters to your notes.'}
+          </div>
         )}
       </div>
     </div>

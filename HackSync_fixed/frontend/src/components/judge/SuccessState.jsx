@@ -7,14 +7,14 @@ import JudgeFeedbackForm from './JudgeFeedbackForm';
  */
 export default function SuccessState({ judgeName = 'Judge', eventId, judgeId }) {
   return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-8">
+    <div className="min-h-screen bg-[#F5F3F0] flex items-center justify-center p-8">
       <div className="text-center space-y-8 max-w-md">
         
         {/* Animated Checkmark */}
         <div className="relative mx-auto w-24 h-24 flex items-center justify-center">
-          <div className="absolute inset-0 bg-stone-100 rounded-full animate-pulse scale-150 opacity-50" />
-          <div className="absolute inset-0 bg-stone-100 rounded-full animate-ping opacity-30" />
-          <div className="relative w-20 h-20 bg-stone-900 rounded-full flex items-center justify-center shadow-xl z-10 checkmark-container">
+          <div className="absolute inset-0 bg-[#bee8dc] rounded-full animate-pulse scale-150 opacity-50" />
+          <div className="absolute inset-0 bg-[#bee8dc] rounded-full animate-ping opacity-30" />
+          <div className="relative w-20 h-20 bg-[#012d1d] rounded-full flex items-center justify-center shadow-xl z-10 checkmark-container">
             <svg 
               className="w-10 h-10 text-white"
               fill="none" 
@@ -33,16 +33,16 @@ export default function SuccessState({ judgeName = 'Judge', eventId, judgeId }) 
         </div>
 
         <div className="space-y-3">
-          <h2 className="text-2xl font-bold tracking-tight text-stone-900">
+          <h2 className="text-2xl font-bold tracking-tight text-[#012d1d]">
             All Evaluations Complete
           </h2>
-          <p className="text-stone-500 text-sm max-w-[280px] mx-auto leading-relaxed">
+          <p className="text-[#414844] text-sm max-w-[280px] mx-auto leading-relaxed">
             Thank you, {judgeName}. You have successfully submitted scores for all assigned teams.
           </p>
         </div>
 
-        <div className="bg-stone-50 rounded-2xl p-6 text-sm text-stone-600 leading-relaxed border border-stone-100">
-          <span className="material-symbols-outlined text-stone-400 text-[18px] align-middle mr-2">info</span>
+        <div className="bg-white border border-[#012d1d]/10 rounded-2xl p-6 text-sm text-[#414844] leading-relaxed">
+          <span className="material-symbols-outlined text-[#012d1d] text-[18px] align-middle mr-2">info</span>
           The event committee will review all scores and notify you of the final results. You may close this window.
         </div>
 
