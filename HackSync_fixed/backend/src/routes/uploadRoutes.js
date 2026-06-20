@@ -304,23 +304,35 @@ router.post("/events", async (req, res) => {
   }
 });
 
-// DELETE /api/admin/events/:id
 router.delete("/events/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
+
     // Get all nested entity IDs
     const teams = await prisma.team.findMany({ where: { eventId: id }, select: { id: true } });
     const teamIds = teams.map(t => t.id);
-    
+
     const judges = await prisma.judge.findMany({ where: { eventId: id }, select: { id: true } });
     const judgeIds = judges.map(j => j.id);
-    
+
     const participants = await prisma.participant.findMany({ where: { eventId: id }, select: { id: true } });
     const participantIds = participants.map(p => p.id);
-    
+
     const recipientIds = [...judgeIds, ...participantIds, `system_${id}`];
 
+    // ✅ NEW: Delete GithubAnalysis → GithubRepo (both reference event)
+    const githubRepos = await prisma.githubRepo.findMany({ where: { eventId: id }, select: { id: true } });
+    const githubRepoIds = githubRepos.map(r => r.id);
+
+    if (githubRepoIds.length > 0) {
+      await prisma.githubAnalysis.deleteMany({ where: { repoId: { in: githubRepoIds } } });
+      await prisma.githubRepo.deleteMany({ where: { eventId: id } });
+    }
+
+    // ✅ NEW: Delete Feedback records for this event
+    await prisma.feedback.deleteMany({ where: { eventId: id } });
+
+    // Existing cleanup
     if (teamIds.length > 0) {
       await prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } });
       await prisma.evaluation.deleteMany({ where: { teamId: { in: teamIds } } });
@@ -341,12 +353,14 @@ router.delete("/events/:id", async (req, res) => {
     }
 
     await prisma.eventSettings.deleteMany({ where: { key: { startsWith: `${id}_` } } });
-    
+
     await prisma.judge.deleteMany({ where: { eventId: id } });
     await prisma.participant.deleteMany({ where: { eventId: id } });
     await prisma.event.delete({ where: { id } });
+
     return res.json({ success: true });
   } catch (error) {
+    console.error("[DELETE EVENT ERROR]", error); // keep this for future debugging
     return res.status(500).json({ success: false, message: error.message });
   }
 });
