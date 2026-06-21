@@ -75,10 +75,10 @@ router.get('/teams', async (req, res) => {
 
     const assignedTeamIds = JSON.parse(judge.assignedTeams || '[]');
 
-    // Fallback: if no teams assigned yet, return all published teams
+    // Fallback: if no teams assigned yet, return all published teams for this event
     let teamIdList = assignedTeamIds;
     if (!teamIdList.length) {
-      const allTeams = await prisma.team.findMany({ where: { status: 'PUBLISHED' }, select: { id: true } });
+      const allTeams = await prisma.team.findMany({ where: { status: 'PUBLISHED', eventId: judge.eventId }, select: { id: true } });
       teamIdList = allTeams.map(t => t.id);
     }
 

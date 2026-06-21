@@ -132,19 +132,52 @@ router.post('/judge-calibration-report/generate-summaries', async (req, res) => 
     if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
 
     const { judgeStats, globalAvg } = await getEvaluationsAndJudgeStats(eventId);
-    let triggered = 0;
+    const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
+    let generatedCount = 0;
 
-    for (const jid in judgeStats) {
-      await anomalyQueue.add('generate_calibration_summary', {
-        taskName: 'generate_calibration_summary',
-        judgeId: jid,
-        global_avg: globalAvg,
-        eventId
-      });
-      triggered++;
-    }
+    const promises = Object.entries(judgeStats).map(async ([jid, stats]) => {
+      if (!stats.evaluations || stats.evaluations.length === 0) return;
 
-    return res.json({ success: true, triggered, message: 'Summary generation jobs queued successfully.' });
+      const scores_list = stats.evaluations.map(e => {
+        return `${e.team.name}: ${e.effectiveScore.toFixed(2)}`;
+      }).join(", ");
+
+      try {
+        const response = await fetch(`${AI_BACKEND_URL}/calibration-summary`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: stats.judge.name,
+            N: stats.evaluations.length,
+            global_avg: globalAvg,
+            avg: stats.mean,
+            std_dev: stats.stdDev,
+            bias_label: stats.biasLabel,
+            scores_list
+          })
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const summary = result.summary;
+
+          await prisma.eventSettings.upsert({
+            where: { key: `calibration_summary_${jid}` },
+            create: { key: `calibration_summary_${jid}`, value: summary },
+            update: { value: summary }
+          });
+          generatedCount++;
+        } else {
+          console.error(`[Calibration] AI backend returned error for judge ${jid}: ${response.status}`);
+        }
+      } catch (err) {
+        console.error(`[Calibration] Error calling AI backend for judge ${jid}:`, err.message);
+      }
+    });
+
+    await Promise.all(promises);
+
+    return res.json({ success: true, triggered: generatedCount, message: `Summaries generated successfully for ${generatedCount} judges.` });
   } catch (error) {
     console.error('[Calibration] POST /generate-summaries error:', error);
     return res.status(500).json({ success: false, detail: error.message });
