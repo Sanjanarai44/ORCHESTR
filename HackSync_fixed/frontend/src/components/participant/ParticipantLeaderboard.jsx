@@ -4,7 +4,7 @@ import { teamsApi, scoresApi, feedbackApi } from "../../api";
 
 const NODE = import.meta.env.VITE_NODE_URL || 'https://orchestr-backend-8u5k.onrender.com';
 
-export default function ParticipantLeaderboard({ eventId = 1, currentTeamId, participantId }) {
+export default function ParticipantLeaderboard({ eventId, currentTeamId, participantId }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [allScored, setAllScored] = useState(false);
