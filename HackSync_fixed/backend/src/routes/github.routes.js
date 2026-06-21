@@ -6,11 +6,10 @@ import {
   getRepoIssues,
   analyzeContributions,
 } from "../services/githubService.js";
-import prisma from '../config/prisma.js';
+import prisma from "../config/prisma.js";
 
 const router = express.Router();
 
-// Shared: runs the GitHub fetch + scoring + persistence for a given GithubRepo row
 async function runAnalysisForRepo(githubRepo) {
   const { id: repoId, owner, repoName } = githubRepo;
 
@@ -40,9 +39,6 @@ async function runAnalysisForRepo(githubRepo) {
   return { owner, repoName, leaderboard };
 }
 
-// Resolves a team's connected GithubRepo via the team's githubRepoUrl string
-// field — string matching, not a teamId foreign key, so it works regardless
-// of whether that schema migration has been applied.
 async function resolveTeamRepo(teamId) {
   const team = await prisma.team.findUnique({ where: { id: teamId } });
   if (!team?.githubRepoUrl) return { team, githubRepo: null };
@@ -113,8 +109,31 @@ router.post("/connect", async (req, res) => {
   }
 });
 
-// Re-fetches live GitHub data for a connected repo, replaces its stored
-// analysis with fresh rows, and returns the leaderboard for display.
+// ⚠️ IMPORTANT: /analyze/team/:teamId MUST come before /analyze/:repoId
+// otherwise Express matches "team" as a repoId and hits the wrong handler.
+router.post("/analyze/team/:teamId", async (req, res) => {
+  try {
+    const { teamId } = req.params;
+    const { team, githubRepo } = await resolveTeamRepo(teamId);
+
+    if (!team) {
+      return res.status(404).json({ success: false, message: "Team not found" });
+    }
+    if (!githubRepo) {
+      return res
+        .status(404)
+        .json({ success: false, message: "This team hasn't linked a GitHub repository yet" });
+    }
+
+    const { owner, repoName, leaderboard } = await runAnalysisForRepo(githubRepo);
+
+    res.json({ success: true, repository: `${owner}/${repoName}`, leaderboard });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 router.post("/analyze/:repoId", async (req, res) => {
   try {
     const { repoId } = req.params;
@@ -133,32 +152,6 @@ router.post("/analyze/:repoId", async (req, res) => {
   }
 });
 
-// Organizer-facing convenience: analyze straight from a teamId, since the
-// Evaluations tab only has teamId on hand, not the underlying repoId.
-router.post("/analyze/team/:teamId", async (req, res) => {
-  try {
-    const { teamId } = req.params;
-    const { team, githubRepo } = await resolveTeamRepo(teamId);
-
-    if (!team) {
-      return res.status(404).json({ success: false, message: "Team not found" });
-    }
-    if (!githubRepo) {
-      return res.status(404).json({ success: false, message: "This team hasn't linked a GitHub repository yet" });
-    }
-
-    const { owner, repoName, leaderboard } = await runAnalysisForRepo(githubRepo);
-
-    res.json({ success: true, repository: `${owner}/${repoName}`, leaderboard });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ success: false, message: error.message });
-  }
-});
-
-// Read-only: returns the last saved leaderboard for a team without
-// re-hitting the GitHub API. Used by the Evaluations/Judge views to show
-// contribution breakdowns without forcing a re-analyze on every page load.
 router.get("/team/:teamId/leaderboard", async (req, res) => {
   try {
     const { teamId } = req.params;
@@ -179,7 +172,11 @@ router.get("/team/:teamId/leaderboard", async (req, res) => {
     const totalScore = rows.reduce((sum, r) => sum + r.contributionScore, 0);
 
     const leaderboard = rows.map((r) => {
-      const percentage = totalScore > 0 ? Number(((r.contributionScore / totalScore) * 100).toFixed(2)) : 0;
+      const percentage =
+        totalScore > 0
+          ? Number(((r.contributionScore / totalScore) * 100).toFixed(2))
+          : 0;
+
       let status = "Normal";
       if (percentage < 5) status = "Low Participation";
       if (percentage > 70) status = "Dominating Contributions";
