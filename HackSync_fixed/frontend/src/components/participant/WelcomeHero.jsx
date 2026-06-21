@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bot, Send, User, Sparkles, Compass, Users, CalendarClock, ArrowRightCircle } from 'lucide-react';
-
+const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 export default function WelcomeHero({
   participant,
   notifications = [],
@@ -45,7 +45,7 @@ export default function WelcomeHero({
     setLoading(true);
 
     try {
-      const res = await fetch("http://localhost:8000/ai-assistant", {
+      const res = await fetch(`${AI}/ai-assistant`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
