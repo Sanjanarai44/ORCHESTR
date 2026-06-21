@@ -304,49 +304,67 @@ router.post("/events", async (req, res) => {
   }
 });
 
-// DELETE /api/admin/events/:id
 router.delete("/events/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    
-    // Get all nested entity IDs
+
     const teams = await prisma.team.findMany({ where: { eventId: id }, select: { id: true } });
     const teamIds = teams.map(t => t.id);
-    
+
     const judges = await prisma.judge.findMany({ where: { eventId: id }, select: { id: true } });
     const judgeIds = judges.map(j => j.id);
-    
+
     const participants = await prisma.participant.findMany({ where: { eventId: id }, select: { id: true } });
     const participantIds = participants.map(p => p.id);
-    
+
     const recipientIds = [...judgeIds, ...participantIds, `system_${id}`];
 
+    // GitHub cleanup
+    const githubRepos = await prisma.githubRepo.findMany({ where: { eventId: id }, select: { id: true } });
+    const githubRepoIds = githubRepos.map(r => r.id);
+    if (githubRepoIds.length > 0) {
+      await prisma.githubAnalysis.deleteMany({ where: { repoId: { in: githubRepoIds } } });
+      await prisma.githubRepo.deleteMany({ where: { eventId: id } });
+    }
+
+    // Feedback
+    await prisma.feedback.deleteMany({ where: { eventId: id } });
+
+    // ✅ FIX: Delete evaluations & anomalyFlags by judgeId FIRST, before deleting judges
+    if (judgeIds.length > 0) {
+      await prisma.evaluation.deleteMany({ where: { judgeId: { in: judgeIds } } });
+      await prisma.anomalyFlag.deleteMany({ where: { judgeId: { in: judgeIds } } });
+    }
+
+    // Team cleanup (evaluations already gone, safe to skip re-deleting)
     if (teamIds.length > 0) {
       await prisma.teamMember.deleteMany({ where: { teamId: { in: teamIds } } });
-      await prisma.evaluation.deleteMany({ where: { teamId: { in: teamIds } } });
-      await prisma.anomalyFlag.deleteMany({ where: { teamId: { in: teamIds } } });
       await prisma.mentorConversation.deleteMany({ where: { teamId: { in: teamIds } } });
       await prisma.team.deleteMany({ where: { eventId: id } });
     }
 
+    // Judge calibration settings
     if (judgeIds.length > 0) {
       await prisma.eventSettings.deleteMany({
         where: { key: { in: judgeIds.map(jid => `calibration_summary_${jid}`) } }
       });
     }
 
+    // Email records
     if (recipientIds.length > 0) {
       await prisma.aiEmailContent.deleteMany({ where: { recipientId: { in: recipientIds } } });
       await prisma.emailLog.deleteMany({ where: { recipientId: { in: recipientIds } } });
     }
 
     await prisma.eventSettings.deleteMany({ where: { key: { startsWith: `${id}_` } } });
-    
+
     await prisma.judge.deleteMany({ where: { eventId: id } });
     await prisma.participant.deleteMany({ where: { eventId: id } });
     await prisma.event.delete({ where: { id } });
+
     return res.json({ success: true });
   } catch (error) {
+    console.error("[DELETE EVENT ERROR]", error);
     return res.status(500).json({ success: false, message: error.message });
   }
 });

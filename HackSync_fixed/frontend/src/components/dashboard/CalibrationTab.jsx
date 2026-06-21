@@ -91,6 +91,7 @@ export default function CalibrationTab({ eventConfig, eventId }) {
         method: 'POST'
       });
       const json = await res.json();
+      await fetchData(); // refresh leaderboard and summaries
       alert(`✅ ${json.message}`);
     } catch (err) {
       alert("❌ Failed to generate summaries.");
