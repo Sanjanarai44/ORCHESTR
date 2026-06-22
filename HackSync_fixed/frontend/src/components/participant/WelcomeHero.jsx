@@ -4,7 +4,8 @@ const AI = import.meta.env.VITE_AI_URL || 'https://orchestr-ai.onrender.com';
 export default function WelcomeHero({
   participant,
   notifications = [],
-  onInviteResponse
+  onInviteResponse,
+  onRefresh  
 }) {
   const chatRef = useRef(null);
   const textareaRef = useRef(null);
@@ -138,33 +139,31 @@ export default function WelcomeHero({
           </div>
         </div>
       )}
-      {participant?.stage === 'final' &&
- participant?.qualified &&
- participant?.inviteStatus === 'CONFIRMED' && (
-  <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
-    <p className="font-bold text-green-700">
-      You have confirmed participation in the next round.
-    </p>
-  </div>
-)}
-      {participant?.stage === 'final' && !participant?.qualified && (
-  <div className="bg-stone-100 rounded-2xl p-6">
-    <p className="font-bold text-lg">
-      Results Published
-    </p>
 
-    <p className="text-sm text-stone-600 mt-1">
-      Thank you for participating. Your team did not qualify for the next round.
-    </p>
-  </div>
-)}
+      {participant?.stage === 'final' &&
+        participant?.qualified &&
+        participant?.inviteStatus === 'CONFIRMED' && (
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
+          <p className="font-bold text-green-700">
+            You have confirmed participation in the next round.
+          </p>
+        </div>
+      )}
+
+      {participant?.stage === 'final' && !participant?.qualified && (
+        <div className="bg-stone-100 rounded-2xl p-6">
+          <p className="font-bold text-lg">Results Published</p>
+          <p className="text-sm text-stone-600 mt-1">
+            Thank you for participating. Your team did not qualify for the next round.
+          </p>
+        </div>
+      )}
 
       {/* MAIN GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
         {/* Welcome Banner */}
         <div className="lg:col-span-2 relative overflow-hidden bg-[#1b4332] rounded-xl p-8 flex flex-col justify-center">
-          {/* decorative glow */}
           <div className="pointer-events-none absolute -top-20 -right-20 w-72 h-72 rounded-full bg-[#E8B64A]/10 blur-3xl" />
           <div className="pointer-events-none absolute -bottom-24 -left-10 w-56 h-56 rounded-full bg-white/5 blur-3xl" />
 
@@ -180,6 +179,14 @@ export default function WelcomeHero({
               {" • "}
               {getStageMessage()}
             </p>
+
+            <button
+              onClick={onRefresh}
+              className="mt-4 flex items-center gap-1.5 text-xs text-[#86af99] hover:text-white transition-colors"
+            >
+              <span className="material-symbols-outlined text-[14px]">refresh</span>
+              Check for updates
+            </button>
           </div>
         </div>
 
