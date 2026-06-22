@@ -92,7 +92,8 @@ export default function CalibrationTab({ eventConfig, eventId }) {
       });
       const json = await res.json();
       await fetchData(); // refresh leaderboard and summaries
-      alert(`✅ ${json.message}`);
+      const count = json.triggered ?? 0;
+      alert(`✅ AI summaries generated for ${count} judge${count !== 1 ? 's' : ''}.`);
     } catch (err) {
       alert("❌ Failed to generate summaries.");
     }
