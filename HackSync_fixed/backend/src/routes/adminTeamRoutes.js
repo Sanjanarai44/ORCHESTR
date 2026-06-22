@@ -388,27 +388,33 @@ router.patch("/teams/:id/status", async (req, res) => {
 });
 router.delete("/teams/:id", async (req, res) => {
   try {
-    await prisma.teamMember.deleteMany({
-      where: {
-        teamId: req.params.id,
-      },
-    });
+    const teamId = req.params.id;
 
-    await prisma.team.delete({
-      where: {
-        id: req.params.id,
-      },
-    });
+    // Cascade delete in FK-safe order:
+    // 1. AnomalyFlags reference both Team and Judge
+    await prisma.anomalyFlag.deleteMany({ where: { teamId } });
 
-    return res.json({
-      success: true,
-    });
+    // 2. Evaluations reference both Team and Judge
+    await prisma.evaluation.deleteMany({ where: { teamId } });
+
+    // 3. MentorConversations reference Team
+    await prisma.mentorConversation.deleteMany({ where: { teamId } });
+
+    // 4. GithubRepo references Team (one-to-one)
+    await prisma.githubRepo.deleteMany({ where: { teamId } });
+
+    // 5. TeamMembers reference Team
+    await prisma.teamMember.deleteMany({ where: { teamId } });
+
+    // 6. Finally delete the Team itself
+    await prisma.team.delete({ where: { id: teamId } });
+
+    return res.json({ success: true });
   } catch (error) {
-    console.error("Delete failed:", error);
-
+    console.error("Delete team failed:", error);
     return res.status(500).json({
       success: false,
-      message: "Delete failed",
+      message: "Delete failed: " + error.message,
     });
   }
 });

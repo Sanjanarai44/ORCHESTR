@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import { emailQueue } from '../queues/emailQueue.js';
 import prisma from '../config/prisma.js';
+import { sendEmailDirect } from '../utils/emailHelper.js';
 
 const router = express.Router();
 
@@ -139,8 +139,9 @@ router.post('/send-judge-links', async (req, res) => {
       const magicLink = `${frontendUrl}/?token=${token}`;
       const jobId = `magic_link_${judge.id}_${Date.now()}`;
 
+      let logId;
       try {
-        await prisma.emailLog.create({
+        const log = await prisma.emailLog.create({
           data: {
             jobId,
             recipientId: judge.id,
@@ -150,19 +151,17 @@ router.post('/send-judge-links', async (req, res) => {
             status: 'PENDING',
           },
         });
+        logId = log.id;
       } catch {}
 
-      try {
-        await emailQueue.add('send_email', {
-          recipientId: judge.id,
-          recipientEmail: judge.email,
-          recipientName: judge.name,
-          emailType: 'magic_link',
-          templateData: { judgeName: judge.name, magicLink, expiryHours: 48 },
-        }, { jobId });
-      } catch (qErr) {
-        console.error(`[send-judge-links] Queue error for ${judge.email}:`, qErr.message);
-      }
+      // Send directly via SendGrid (no Redis/BullMQ needed)
+      await sendEmailDirect(
+        prisma,
+        logId,
+        judge.email,
+        'magic_link',
+        { judgeName: judge.name, magicLink, expiryHours: 48 },
+      );
 
       sentCount++;
     }
@@ -223,23 +222,19 @@ router.post('/send-participant-emails', async (req, res) => {
           logId = createdLog.id;
         } catch {}
 
-        try {
-          await emailQueue.add('send_email', {
-            emailType,
-            recipientId: participant.id,
-            recipientEmail: participant.email,
-            recipientName: participant.name,
-            templateData: {
-              participantName: participant.name,
-              teamName: team.name,
-              teammates: team.members.filter(m => m.id !== member.id).map(m => ({ name: m.name, email: m.email, skill: m.skill })),
-              portalLink
-            },
-            logId
-          }, { jobId });
-        } catch (qErr) {
-          console.error(`Queue error for ${participant.email}:`, qErr.message);
-        }
+        // Send directly via SendGrid (no Redis/BullMQ needed)
+        await sendEmailDirect(
+          prisma,
+          logId,
+          participant.email,
+          emailType,
+          {
+            participantName: participant.name,
+            teamName: team.name,
+            teammates: team.members.filter(m => m.id !== member.id).map(m => ({ name: m.name, email: m.email, skill: m.skill })),
+            portalLink,
+          },
+        );
         sentCount++;
       }
     }
@@ -295,23 +290,19 @@ router.post('/send-team-emails/:teamId', async (req, res) => {
         logId = createdLog.id;
       } catch {}
 
-      try {
-        await emailQueue.add('send_email', {
-          emailType,
-          recipientId: participant.id,
-          recipientEmail: participant.email,
-          recipientName: participant.name,
-          templateData: {
-            participantName: participant.name,
-            teamName: team.name,
-            teammates: team.members.filter(m => m.id !== member.id).map(m => ({ name: m.name, email: m.email, skill: m.skill })),
-            portalLink
-          },
-          logId
-        }, { jobId });
-      } catch (qErr) {
-        console.error(`Queue error for ${participant.email}:`, qErr.message);
-      }
+      // Send directly via SendGrid (no Redis/BullMQ needed)
+      await sendEmailDirect(
+        prisma,
+        logId,
+        participant.email,
+        emailType,
+        {
+          participantName: participant.name,
+          teamName: team.name,
+          teammates: team.members.filter(m => m.id !== member.id).map(m => ({ name: m.name, email: m.email, skill: m.skill })),
+          portalLink,
+        },
+      );
       sentCount++;
     }
 

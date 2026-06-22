@@ -1,6 +1,6 @@
 import express from "express";
 import { PrismaClient } from "@prisma/client";
-import { emailQueue } from "../queues/emailQueue.js";
+import { sendEmailDirect } from "../utils/emailHelper.js";
 
 const router = express.Router();
 const prisma = new PrismaClient();
@@ -95,39 +95,36 @@ router.post("/qualify-team/:teamId", async (req, res) => {
             console.error("AI Email error:", e);
           }
 
-          if (htmlBody) {
-            // Log it and Queue it
+          // Always send results email — use AI-generated body if available, else template
+          {
             const jobId = `participant_results_${participant.id}_${Date.now()}`;
-            
-            await prisma.aiEmailContent.create({
-              data: {
-                id: `ai_${jobId}`,
-                recipientId: participant.id,
-                emailType: 'results',
-                subject: `🏆 Congratulations! You Qualified! — ${team.name}`,
-                htmlBody
-              }
-            });
 
-            const emailLog = await prisma.emailLog.create({
-              data: {
-                jobId,
-                recipientId: participant.id,
-                recipientEmail: participant.email,
-                recipientName: participant.name,
-                emailType: 'results',
-                status: 'PENDING'
-              }
-            });
+            let logId;
+            try {
+              const emailLogRow = await prisma.emailLog.create({
+                data: {
+                  jobId,
+                  recipientId: participant.id,
+                  recipientEmail: participant.email,
+                  recipientName: participant.name,
+                  emailType: 'results',
+                  status: 'PENDING'
+                }
+              });
+              logId = emailLogRow.id;
+            } catch {}
 
-            await emailQueue.add('send_email', {
-              emailType: 'results',
-              recipientId: participant.id,
-              recipientEmail: participant.email,
-              recipientName: participant.name,
-              templateData: {},
-              logId: emailLog.id
-            }, { jobId });
+            // Send directly via SendGrid (no Redis/BullMQ needed)
+            // Pass prebuilt AI html if we have it; otherwise sendEmailDirect uses the template builder
+            await sendEmailDirect(
+              prisma,
+              logId,
+              participant.email,
+              'results',
+              { participantName: participant.name, teamName: team.name, rank, score },
+              htmlBody || null,
+              htmlBody ? `🏆 Congratulations! You Qualified! — ${team.name}` : null,
+            );
           }
         }
       }

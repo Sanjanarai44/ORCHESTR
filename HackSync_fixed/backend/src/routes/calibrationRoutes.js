@@ -132,52 +132,98 @@ router.post('/judge-calibration-report/generate-summaries', async (req, res) => 
     if (!eventId) return res.status(400).json({ success: false, detail: 'eventId is required' });
 
     const { judgeStats, globalAvg } = await getEvaluationsAndJudgeStats(eventId);
-    const AI_BACKEND_URL = process.env.AI_BACKEND_URL || 'http://localhost:8000';
-    let generatedCount = 0;
 
-    const promises = Object.entries(judgeStats).map(async ([jid, stats]) => {
+    const judgeEntries = Object.entries(judgeStats);
+    if (judgeEntries.length === 0) {
+      return res.json({ success: true, triggered: 0, generated: 0, message: 'No judges with evaluations found.' });
+    }
+
+    const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+    let generatedCount = 0;
+    let failedCount = 0;
+
+    const promises = judgeEntries.map(async ([jid, stats]) => {
       if (!stats.evaluations || stats.evaluations.length === 0) return;
 
-      const scores_list = stats.evaluations.map(e => {
-        return `${e.team.name}: ${e.effectiveScore.toFixed(2)}`;
-      }).join(", ");
+      const scores_list = stats.evaluations
+        .map(e => `${e.team.name}: ${e.effectiveScore.toFixed(2)}`)
+        .join(', ');
 
-      try {
-        const response = await fetch(`${AI_BACKEND_URL}/calibration-summary`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: stats.judge.name,
-            N: stats.evaluations.length,
-            global_avg: globalAvg,
-            avg: stats.mean,
-            std_dev: stats.stdDev,
-            bias_label: stats.biasLabel,
-            scores_list
-          })
-        });
+      const prompt = `You are analyzing scoring patterns for a hackathon judge named ${stats.judge.name}. They evaluated ${stats.evaluations.length} teams.
+Global panel average: ${globalAvg.toFixed(2)}/10.
+This judge's average: ${stats.mean.toFixed(2)}/10.
+Standard deviation: ${stats.stdDev.toFixed(2)}.
+Bias classification: ${stats.biasLabel}.
+Their scores per team: ${scores_list}.
+In exactly 3 sentences:
+1. Describe their scoring tendency relative to the panel average.
+2. Note any patterns — consistency, outlier scores, variability.
+3. Give a specific recommendation to the committee on whether this judge's scores should be weighted differently.
+Use specific numbers. Be direct.`;
 
-        if (response.ok) {
-          const result = await response.json();
-          const summary = result.summary;
+      const fallbackSummary = `${stats.judge.name} graded with an average of ${stats.mean.toFixed(2)}/10 (global avg: ${globalAvg.toFixed(2)}/10), classifying them as ${stats.biasLabel}. Their standard deviation was ${stats.stdDev.toFixed(2)}, indicating ${stats.stdDev < 1 ? 'very consistent' : stats.stdDev > 2.5 ? 'highly variable' : 'moderately consistent'} scoring. The committee should ${stats.biasLabel === 'Neutral' ? 'treat this judge\'s scores at face value' : `consider ${stats.biasLabel === 'Harsh' ? 'upweighting' : 'downweighting'} this judge\'s scores relative to the panel`}.`;
 
-          await prisma.eventSettings.upsert({
-            where: { key: `calibration_summary_${jid}` },
-            create: { key: `calibration_summary_${jid}`, value: summary },
-            update: { value: summary }
+      let summary = fallbackSummary;
+
+      if (OPENROUTER_API_KEY) {
+        try {
+          const llmRes = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
+              'HTTP-Referer': 'https://orchestr-backend-8u5k.onrender.com',
+              'X-Title': 'ORCHESTR Calibration',
+            },
+            body: JSON.stringify({
+              model: 'meta-llama/llama-3.1-8b-instruct:free',
+              messages: [{ role: 'user', content: prompt }],
+              max_tokens: 200,
+              temperature: 0.3,
+            }),
           });
-          generatedCount++;
-        } else {
-          console.error(`[Calibration] AI backend returned error for judge ${jid}: ${response.status}`);
+
+          if (llmRes.ok) {
+            const llmData = await llmRes.json();
+            const content = llmData?.choices?.[0]?.message?.content?.trim();
+            if (content) {
+              summary = content;
+              generatedCount++;
+            } else {
+              console.warn(`[Calibration] LLM returned empty content for judge ${jid}`);
+              failedCount++;
+            }
+          } else {
+            const errText = await llmRes.text().catch(() => '');
+            console.error(`[Calibration] LLM error for judge ${jid}: ${llmRes.status} ${errText}`);
+            failedCount++;
+          }
+        } catch (llmErr) {
+          console.error(`[Calibration] LLM call failed for judge ${jid}:`, llmErr.message);
+          failedCount++;
         }
-      } catch (err) {
-        console.error(`[Calibration] Error calling AI backend for judge ${jid}:`, err.message);
+      } else {
+        console.warn(`[Calibration] No OPENROUTER_API_KEY — storing fallback summary for ${stats.judge.name}`);
+        generatedCount++;
       }
+
+      // Always persist (AI summary or fallback) so the card is never blank
+      await prisma.eventSettings.upsert({
+        where: { key: `calibration_summary_${jid}` },
+        create: { key: `calibration_summary_${jid}`, value: summary },
+        update: { value: summary },
+      });
     });
 
     await Promise.all(promises);
 
-    return res.json({ success: true, triggered: generatedCount, message: `Summaries generated successfully for ${generatedCount} judges.` });
+    const total = judgeEntries.length;
+    const actualAI = OPENROUTER_API_KEY ? generatedCount : 0;
+    const message = OPENROUTER_API_KEY
+      ? `AI summaries generated for ${generatedCount}/${total} judge(s).${failedCount > 0 ? ` (${failedCount} used fallback text)` : ''}`
+      : `Fallback summaries stored for ${total} judge(s) (no API key configured).`;
+
+    return res.json({ success: true, triggered: total, generated: actualAI, message });
   } catch (error) {
     console.error('[Calibration] POST /generate-summaries error:', error);
     return res.status(500).json({ success: false, detail: error.message });
