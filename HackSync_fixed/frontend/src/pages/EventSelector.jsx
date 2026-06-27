@@ -139,15 +139,15 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
   return (
     <div className="min-h-screen bg-[#F5F3F0]">
       {/* Top nav */}
-      <nav className="bg-white border-b border-[#E2DDD8] px-8 h-14 flex items-center justify-between">
+      <nav className="bg-white border-b border-[#E2DDD8] px-4 sm:px-8 h-14 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-[#012d1d] flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#012d1d] flex items-center justify-center flex-shrink-0">
             <span className="material-symbols-outlined text-[#a5d0b9] text-[16px]">terminal</span>
           </div>
           <span className="font-extrabold text-[#012d1d]">Wise@TI</span>
         </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
+        <div className="flex items-center gap-2 sm:gap-4">
+          <div className="text-right hidden sm:block">
             <p className="text-xs font-bold text-[#012d1d]">{organizer.name}</p>
             <p className="text-[10px] text-[#5a6672]">{organizer.email}</p>
           </div>
@@ -156,16 +156,16 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
             className="flex items-center gap-1.5 text-xs font-bold text-[#5a6672] hover:text-[#012d1d] px-3 py-2 rounded-lg hover:bg-[#F5F3F0] transition-colors"
           >
             <span className="material-symbols-outlined text-[16px]">logout</span>
-            Sign Out
+            <span className="hidden sm:inline">Sign Out</span>
           </button>
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-8 py-12">
+      <div className="max-w-6xl mx-auto px-4 sm:px-8 py-8 sm:py-12">
         {/* Header */}
-        <div className="flex items-start justify-between mb-10">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4 mb-8 sm:mb-10">
           <div>
-            <h1 className="text-3xl font-extrabold text-[#012d1d] mb-2">Your Events</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-[#012d1d] mb-2">Your Events</h1>
             <p className="text-[#5a6672]">
               {events.length === 0
                 ? "No events yet. Create your first event to get started."
@@ -174,7 +174,7 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
           </div>
           <button
             onClick={onNewEvent}
-            className="flex items-center gap-2 bg-[#012d1d] hover:bg-[#023d29] text-white font-bold px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+            className="flex items-center gap-2 bg-[#012d1d] hover:bg-[#023d29] text-white font-bold px-5 sm:px-6 py-3 rounded-2xl transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 self-start sm:self-auto"
           >
             <span className="material-symbols-outlined text-[18px]">add_circle</span>
             New Event
@@ -205,7 +205,7 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {events.map((event) => (
               <div
                 key={event.id}
@@ -218,7 +218,7 @@ export default function EventSelector({ organizer, onSelectEvent, onNewEvent, on
             {/* New event card */}
             <button
               onClick={onNewEvent}
-              className="rounded-2xl border-2 border-dashed border-[#E2DDD8] hover:border-[#012d1d]/40 hover:bg-white flex flex-col items-center justify-center gap-4 p-8 min-h-[320px] transition-all group"
+              className="rounded-2xl border-2 border-dashed border-[#E2DDD8] hover:border-[#012d1d]/40 hover:bg-white flex flex-col items-center justify-center gap-4 p-8 min-h-[280px] sm:min-h-[320px] transition-all group"
             >
               <div className="w-14 h-14 rounded-2xl bg-[#F5F3F0] group-hover:bg-[#012d1d]/5 flex items-center justify-center transition-colors">
                 <span className="material-symbols-outlined text-[#012d1d]/40 group-hover:text-[#012d1d]/70 text-3xl">

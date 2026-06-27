@@ -150,7 +150,7 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
       <div className="flex-grow flex w-full relative overflow-hidden bg-white rounded-b-xl border border-t-0 border-[#cbe8eb] shadow-sm">
         
         {/* Center Chat Container */}
-        <div className={`flex flex-col h-full transition-all duration-300 flex-1 ${isNotesOpen ? 'border-r border-[#cbe8eb] mr-[300px]' : ''}`}>
+        <div className={`flex flex-col h-full transition-all duration-300 flex-1 ${isNotesOpen ? 'border-r border-[#cbe8eb] md:mr-[300px]' : ''}`}>
           
           {/* Context Box */}
           <div className="m-6 border-l-4 border-[#012d1d] bg-[#eafdff] p-4 rounded-r-lg shadow-sm shrink-0">
@@ -265,7 +265,7 @@ export default function AIMentor({ eventId, teamId, teamName, participantId, onB
 
         {/* Side Panel (Notes) - Collapsible */}
         <div 
-          className={`flex flex-col bg-[#f8faf9] h-full absolute right-0 top-0 bottom-0 transition-transform duration-300 ease-in-out border-l border-[#cbe8eb] w-[300px] z-20 ${isNotesOpen ? 'translate-x-0' : 'translate-x-full'}`}
+          className={`flex flex-col bg-[#f8faf9] h-full absolute right-0 top-0 bottom-0 transition-transform duration-300 ease-in-out border-l border-[#cbe8eb] w-[85vw] md:w-[300px] z-20 ${isNotesOpen ? 'translate-x-0' : 'translate-x-full'}`}
         >
           <div className="p-4 border-b border-[#cbe8eb] bg-white flex justify-between items-center shrink-0">
             <div className="text-sm font-bold flex items-center gap-2 text-[#012d1d]">

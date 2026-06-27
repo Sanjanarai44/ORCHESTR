@@ -38,7 +38,7 @@ function ContribDrawer({ teamId, open, onClose }) {
       />
 
       {/* Drawer */}
-      <div className="fixed right-0 top-0 h-full w-[420px] bg-white border-l border-[#012d1d]/10 z-40 flex flex-col shadow-2xl">
+      <div className="fixed right-0 top-0 h-full w-[85vw] sm:w-[420px] bg-white border-l border-[#012d1d]/10 z-40 flex flex-col shadow-2xl">
         {/* Drawer header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[#012d1d]/8 flex-shrink-0">
           <div className="flex items-center gap-2">

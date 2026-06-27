@@ -47,6 +47,7 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
   const [compatibilitySummary, setCompatibilitySummary] = useState('');
   const [compatibilityLoading, setCompatibilityLoading] = useState(false);
   const [evaluator, setEvaluator] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const handleInviteResponse = async (response) => {
     try {
@@ -218,14 +219,34 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
 
   return (
     <div className="bg-[#eafdff] h-screen overflow-hidden flex font-sans antialiased text-[#031f22]">
-      <ParticipantSidebar activeSection={activeSection} onNavClick={handleNavClick} eventConfig={eventConfig} />
+      <ParticipantSidebar
+        activeSection={activeSection}
+        onNavClick={handleNavClick}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <main ref={scrollContainerRef} onScroll={handleScroll}
-        className="flex-1 ml-64 overflow-y-auto scroll-smooth flex flex-col h-screen">
+      <main
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="flex-1 md:ml-64 overflow-y-auto scroll-smooth flex flex-col h-screen"
+      >
+        {/* Mobile top bar */}
+        <div className="md:hidden sticky top-0 z-30 bg-[#012d1d] text-white h-14 flex items-center px-4 gap-3 shadow-md flex-shrink-0">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+            aria-label="Open menu"
+          >
+            <span className="material-symbols-outlined text-[22px]">menu</span>
+          </button>
+          <span className="font-bold text-[#eafdff] text-base">Wise@TI — Participant</span>
+        </div>
+
         <ParticipantHeader participant={participant} onLogout={() => setParticipant(null)} />
 
         {showAIMentor ? (
-          <div className="flex-1 p-6 overflow-hidden">
+          <div className="flex-1 p-4 sm:p-6 overflow-hidden">
             <AIMentor
               eventId={eventConfig?.id || eventId || 1}
               teamId={team?.id}
@@ -235,7 +256,7 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
             />
           </div>
         ) : (
-          <div className="px-16 py-2 space-y-12 pb-24">
+          <div className="px-4 sm:px-8 lg:px-16 py-2 space-y-12 pb-24">
             <div ref={sectionRefs.dashboard} id="dashboard" className="pt-4">
               <WelcomeHero
                 participant={participant}
@@ -296,16 +317,25 @@ export default function ParticipantDashboard({ eventConfig, eventId, authenticat
             return (
               <div key={stage.key} className="flex flex-col items-center z-10">
                 <div className={`
-                  w-10 h-10 rounded-full flex items-center justify-center border
+                  w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center border
                   ${isDone ? 'bg-[#012d1d] text-white' : 'bg-white text-[#012d1d]'}
                   ${isActive ? 'ring-4 ring-[#c1ecd4]' : ''}
                 `}>
-                  <span className="material-symbols-outlined text-[18px]">{stage.icon}</span>
+                  <span className="material-symbols-outlined text-[14px] sm:text-[18px]">{stage.icon}</span>
                 </div>
-                <p className="text-[11px] mt-2 text-center text-[#414844]">{stage.label}</p>
+                <p className="text-[9px] sm:text-[11px] mt-2 text-center text-[#414844] hidden sm:block">{stage.label}</p>
               </div>
             );
           })}
+        </div>
+
+        {/* Stage labels on mobile as a single row below */}
+        <div className="flex justify-between mt-4 sm:hidden">
+          {STAGES.map((stage, idx) => (
+            <p key={stage.key} className={`text-[9px] text-center text-[#414844] flex-1 ${idx <= currentIndex ? 'font-bold text-[#012d1d]' : ''}`}>
+              {stage.label}
+            </p>
+          ))}
         </div>
       </div>
     );

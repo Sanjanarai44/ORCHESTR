@@ -17,6 +17,7 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
   const [teamScores, setTeamScores] = useState({});
   const [progress, setProgress] = useState({ evaluated: 0, total: 0, percent: 0, nextTeam: null });
   const [error, setError] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const pollRef = useRef(null);
 
@@ -80,9 +81,26 @@ export default function JudgeDashboard({ judgeName, judgeToken, onBack, onEvalua
 
   return (
     <div className="bg-[#F5F3F0] min-h-screen text-[#031f22] font-sans antialiased">
-      <JudgeSidebar activeSection={activeSection} onNavClick={handleNavClick} />
+      <JudgeSidebar
+        activeSection={activeSection}
+        onNavClick={handleNavClick}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+      />
 
-      <main className="ml-64 min-h-screen px-16 py-12 flex flex-col gap-20">
+      {/* Mobile top bar */}
+      <div className="md:hidden sticky top-0 z-30 bg-[#012d1d] text-white h-14 flex items-center px-4 gap-3 shadow-md">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+          aria-label="Open menu"
+        >
+          <span className="material-symbols-outlined text-[22px]">menu</span>
+        </button>
+        <span className="font-bold text-[#eafdff] text-base">Wise@TI — Judge Portal</span>
+      </div>
+
+      <main className="md:ml-64 min-h-screen px-4 sm:px-8 lg:px-16 py-8 sm:py-12 flex flex-col gap-12 sm:gap-20">
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-xl p-4 text-sm text-red-700">
             <strong>Error:</strong> {error}

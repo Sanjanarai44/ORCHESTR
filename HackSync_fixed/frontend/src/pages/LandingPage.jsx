@@ -130,46 +130,98 @@ export default function LandingPage({ onNavigate, organizer }) {
         position: 'fixed', top: 0, left: 0, right: 0, zIndex: 100,
         background: 'rgba(4,12,7,0.85)', backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(161,208,185,0.1)',
-        height: 56, display: 'flex', alignItems: 'center',
-        padding: '0 clamp(1.5rem, 5vw, 5rem)',
-        justifyContent: 'space-between',
         opacity: heroVisible ? 1 : 0,
         transform: heroVisible ? 'translateY(0)' : 'translateY(-12px)',
         transition: 'opacity 0.5s ease, transform 0.5s ease',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, borderRadius: 8, background: '#012d1d', border: '1px solid rgba(161,208,185,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span className="material-symbols-outlined" style={{ color: '#a5d0b9', fontSize: 16 }}>terminal</span>
+        {/* Main nav row */}
+        <div style={{
+          height: 56, display: 'flex', alignItems: 'center',
+          padding: '0 clamp(1rem, 5vw, 5rem)',
+          justifyContent: 'space-between',
+        }}>
+          {/* Logo */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: '#012d1d', border: '1px solid rgba(161,208,185,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span className="material-symbols-outlined" style={{ color: '#a5d0b9', fontSize: 16 }}>terminal</span>
+            </div>
+            <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', color: '#e8f5ef' }}>ORCHESTR</span>
           </div>
-          <span style={{ fontWeight: 800, fontSize: 16, letterSpacing: '-0.02em', color: '#e8f5ef' }}>ORCHESTR</span>
-        </div>
 
-        <div style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
-          {['Features', 'How it works', 'For teams'].map(l => (
-            <button key={l} style={{ background: 'none', border: 'none', color: 'rgba(232,245,239,0.55)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-              className="nav-link">{l}</button>
-          ))}
-        </div>
+          {/* Desktop nav links */}
+          <div className="nav-desktop-links" style={{ display: 'flex', gap: 32, alignItems: 'center' }}>
+            {['Features', 'How it works', 'For teams'].map(l => (
+              <button key={l} style={{ background: 'none', border: 'none', color: 'rgba(232,245,239,0.55)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
+                className="nav-link">{l}</button>
+            ))}
+          </div>
 
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {organizer ? (
-            <button onClick={() => onNavigate('admin')}
-              style={{ background: '#a5d0b9', color: '#012d1d', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-              Go to Dashboard →
-            </button>
-          ) : (
-            <>
-              <button onClick={() => onNavigate('admin')}
-                style={{ background: 'none', border: '1px solid rgba(161,208,185,0.25)', color: '#a5d0b9', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Sign In
-              </button>
+          {/* Desktop CTA buttons */}
+          <div className="nav-desktop-cta" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            {organizer ? (
               <button onClick={() => onNavigate('admin')}
                 style={{ background: '#a5d0b9', color: '#012d1d', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
-                Get Started Free
+                Go to Dashboard →
               </button>
-            </>
-          )}
+            ) : (
+              <>
+                <button onClick={() => onNavigate('admin')}
+                  style={{ background: 'none', border: '1px solid rgba(161,208,185,0.25)', color: '#a5d0b9', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Sign In
+                </button>
+                <button onClick={() => onNavigate('admin')}
+                  style={{ background: '#a5d0b9', color: '#012d1d', border: 'none', borderRadius: 8, padding: '7px 16px', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Get Started Free
+                </button>
+              </>
+            )}
+          </div>
+
+          {/* Mobile hamburger */}
+          <button
+            className="nav-mobile-hamburger"
+            onClick={() => setMenuOpen(o => !o)}
+            style={{ background: 'none', border: '1px solid rgba(161,208,185,0.2)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', color: '#a5d0b9' }}
+            aria-label="Toggle menu"
+          >
+            <span className="material-symbols-outlined" style={{ fontSize: 22, display: 'block' }}>
+              {menuOpen ? 'close' : 'menu'}
+            </span>
+          </button>
         </div>
+
+        {/* Mobile dropdown */}
+        {menuOpen && (
+          <div style={{
+            borderTop: '1px solid rgba(161,208,185,0.1)',
+            padding: '16px clamp(1rem, 5vw, 5rem)',
+            display: 'flex', flexDirection: 'column', gap: 8,
+          }} className="nav-mobile-menu">
+            {['Features', 'How it works', 'For teams'].map(l => (
+              <button key={l} style={{ background: 'none', border: 'none', color: 'rgba(232,245,239,0.7)', fontSize: 15, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', padding: '8px 0' }}
+                className="nav-link">{l}</button>
+            ))}
+            <div style={{ borderTop: '1px solid rgba(161,208,185,0.1)', paddingTop: 12, marginTop: 4, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {organizer ? (
+                <button onClick={() => { onNavigate('admin'); setMenuOpen(false); }}
+                  style={{ background: '#a5d0b9', color: '#012d1d', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                  Go to Dashboard →
+                </button>
+              ) : (
+                <>
+                  <button onClick={() => { onNavigate('admin'); setMenuOpen(false); }}
+                    style={{ background: 'none', border: '1px solid rgba(161,208,185,0.25)', color: '#a5d0b9', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Sign In
+                  </button>
+                  <button onClick={() => { onNavigate('admin'); setMenuOpen(false); }}
+                    style={{ background: '#a5d0b9', color: '#012d1d', border: 'none', borderRadius: 8, padding: '10px 16px', fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Get Started Free
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
       </nav>
 
       {/* ── Hero ── */}
@@ -480,6 +532,20 @@ export default function LandingPage({ onNavigate, organizer }) {
         @keyframes float { 0%, 100% { transform: translateX(-50%) translateY(0); } 50% { transform: translateX(-50%) translateY(-6px); } }
         .nav-link:hover { color: rgba(232,245,239,0.9) !important; }
         * { box-sizing: border-box; }
+        /* Responsive nav */
+        .nav-desktop-links { display: flex; }
+        .nav-desktop-cta { display: flex; }
+        .nav-mobile-hamburger { display: none; }
+        .nav-mobile-menu { display: flex; }
+        @media (max-width: 640px) {
+          .nav-desktop-links { display: none !important; }
+          .nav-desktop-cta { display: none !important; }
+          .nav-mobile-hamburger { display: block !important; }
+        }
+        @media (min-width: 641px) {
+          .nav-mobile-menu { display: none !important; }
+          .nav-mobile-hamburger { display: none !important; }
+        }
       `}</style>
     </div>
   );

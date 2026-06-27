@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function Sidebar({ activeTab, setActiveTab, eventConfig, organizer, onBack, onLogout }) {
+export default function Sidebar({ activeTab, setActiveTab, eventConfig, organizer, onBack, onLogout, isOpen, onClose }) {
   const eventName = eventConfig?.event_name || "Event Dashboard";
   const eventType = eventConfig?.event_type || "event";
 
@@ -16,9 +16,20 @@ export default function Sidebar({ activeTab, setActiveTab, eventConfig, organize
   ];
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-[280px] z-50 bg-[#1B4332] text-white flex flex-col py-6 hidden md:flex">
-
+    <aside
+      className={`fixed left-0 top-0 h-full w-[280px] z-50 bg-[#1B4332] text-white flex flex-col py-6 transition-transform duration-300
+        ${isOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0`}
+    >
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Mobile close button */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 md:hidden text-white/60 hover:text-white p-1"
+          aria-label="Close menu"
+        >
+          <span className="material-symbols-outlined text-[22px]">close</span>
+        </button>
+
         {/* Back to events */}
         {onBack && (
           <button onClick={onBack}
